@@ -1,5 +1,5 @@
 import './styles.css'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const initialLeads = [
   {
@@ -80,7 +80,13 @@ function getAction(score) {
 export default function App() {
   const [tab, setTab] = useState('dashboard')
   const [search, setSearch] = useState('')
-  const [leads, setLeads] = useState(initialLeads)
+
+  // ✅ حفظ البيانات
+  const [leads, setLeads] = useState(() => {
+    const saved = localStorage.getItem('tamakan-crm-leads')
+    return saved ? JSON.parse(saved) : initialLeads
+  })
+
   const [newLead, setNewLead] = useState({
     company: '',
     phone: '',
@@ -93,6 +99,11 @@ export default function App() {
     notes: '',
   })
 
+  // ✅ حفظ تلقائي
+  useEffect(() => {
+    localStorage.setItem('tamakan-crm-leads', JSON.stringify(leads))
+  }, [leads])
+
   const processedLeads = useMemo(() => {
     return leads
       .map((lead) => {
@@ -104,25 +115,18 @@ export default function App() {
           action: getAction(score),
         }
       })
-      .filter((lead) => {
-        return (
-          lead.company.includes(search) ||
-          lead.phone.includes(search) ||
-          lead.status.includes(search) ||
-          lead.temperature.includes(search)
-        )
-      })
+      .filter((lead) =>
+        lead.company.includes(search) ||
+        lead.phone.includes(search)
+      )
       .sort((a, b) => b.score - a.score)
   }, [leads, search])
 
-  const stats = useMemo(() => {
-    return {
-      total: leads.length,
-      hot: leads.filter((x) => x.temperature === 'Hot').length,
-      warm: leads.filter((x) => x.temperature === 'Warm').length,
-      today: leads.filter((x) => x.followUp === '2026-03-26').length,
-    }
-  }, [leads])
+  const stats = {
+    total: leads.length,
+    hot: leads.filter((x) => x.temperature === 'Hot').length,
+    today: leads.filter((x) => x.followUp === '2026-03-26').length,
+  }
 
   function addLead() {
     if (!newLead.company || !newLead.phone) return
@@ -130,16 +134,8 @@ export default function App() {
     setLeads([
       {
         id: leads.length + 1,
-        company: newLead.company,
-        phone: newLead.phone,
-        projects: Number(newLead.projects || 0),
-        employees: Number(newLead.employees || 0),
-        currentMethod: newLead.currentMethod,
-        status: newLead.status,
-        temperature: newLead.temperature,
+        ...newLead,
         lastContact: 'اليوم',
-        followUp: newLead.followUp || '2026-03-27',
-        notes: newLead.notes,
       },
       ...leads,
     ])
@@ -160,236 +156,80 @@ export default function App() {
   }
 
   function getWhatsAppLink(lead) {
-    const message =
-      lead.temperature === 'Hot'
-        ? `مرحبًا ${lead.company}، تواصلنا معكم بخصوص نظام إدارة المشاريع والبصمة. هل يناسبكم اجتماع سريع اليوم أو غدًا؟`
-        : lead.temperature === 'Warm'
-        ? `مرحبًا ${lead.company}، نذكركم بتواصلنا السابق بخصوص النظام. هل نرتب اجتماعًا مختصرًا؟`
-        : `مرحبًا ${lead.company}، نحن نقدم حلول إدارة مشاريع وبصمة ومواقع إلكترونية. هل تحبون تعريفًا سريعًا بالخدمة؟`
-
-    return `https://wa.me/${lead.phone}?text=${encodeURIComponent(message)}`
+    return `https://wa.me/${lead.phone}?text=مرحبا ${lead.company}`
   }
 
   return (
     <div className="app" dir="rtl">
-      <header className="hero">
-        <div>
-          <h1>نظام CRM تمكّن</h1>
-          <p>واجهة عربية احترافية لإدارة العملاء والمتابعات والأولويات</p>
-        </div>
-        <div className="hero-buttons">
-          <button className="nav-btn" onClick={() => setTab('dashboard')}>الرئيسية</button>
-          <button className="nav-btn" onClick={() => setTab('leads')}>العملاء</button>
-          <button className="nav-btn" onClick={() => setTab('today')}>متابعة اليوم</button>
-          <button className="nav-btn" onClick={() => setTab('add')}>إضافة عميل</button>
-        </div>
-      </header>
+      <h1>🚀 Tamakan CRM</h1>
 
-      <section className="stats-grid">
-        <div className="stat-card">
-          <span>إجمالي العملاء</span>
-          <strong>{stats.total}</strong>
-        </div>
-        <div className="stat-card">
-          <span>عملاء Hot</span>
-          <strong>{stats.hot}</strong>
-        </div>
-        <div className="stat-card">
-          <span>عملاء Warm</span>
-          <strong>{stats.warm}</strong>
-        </div>
-        <div className="stat-card">
-          <span>متابعات اليوم</span>
-          <strong>{stats.today}</strong>
-        </div>
-      </section>
+      <div className="nav">
+        <button onClick={() => setTab('dashboard')}>الرئيسية</button>
+        <button onClick={() => setTab('leads')}>العملاء</button>
+        <button onClick={() => setTab('add')}>إضافة عميل</button>
+      </div>
 
       {tab === 'dashboard' && (
-        <section className="panel">
-          <div className="panel-header">
-            <h2>أفضل العملاء حسب الأولوية</h2>
+        <>
+          <div className="stats">
+            <div>إجمالي: {stats.total}</div>
+            <div>Hot: {stats.hot}</div>
+            <div>اليوم: {stats.today}</div>
           </div>
 
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>الشركة</th>
-                  <th>الحرارة</th>
-                  <th>الحالة</th>
-                  <th>النقاط</th>
-                  <th>الأولوية</th>
-                  <th>أفضلية الاتصال</th>
+          <table>
+            <thead>
+              <tr>
+                <th>الشركة</th>
+                <th>النقاط</th>
+                <th>الأولوية</th>
+              </tr>
+            </thead>
+            <tbody>
+              {processedLeads.map((l) => (
+                <tr key={l.id}>
+                  <td>{l.company}</td>
+                  <td>{l.score}</td>
+                  <td>{l.priority}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {processedLeads.map((lead) => (
-                  <tr key={lead.id}>
-                    <td>{lead.company}</td>
-                    <td>
-                      <span className={`badge ${lead.temperature.toLowerCase()}`}>
-                        {lead.temperature}
-                      </span>
-                    </td>
-                    <td>{lead.status}</td>
-                    <td>{lead.score}</td>
-                    <td>{lead.priority}</td>
-                    <td>
-                      <span className={`action-badge ${lead.action === 'اتصل الآن' ? 'danger' : lead.action === 'اليوم' ? 'warn' : 'ok'}`}>
-                        {lead.action}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
 
       {tab === 'leads' && (
-        <section className="panel">
-          <div className="panel-header row-between">
-            <h2>قائمة العملاء</h2>
-            <input
-              className="search-input"
-              placeholder="ابحث باسم الشركة أو الجوال أو الحالة"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+        <>
+          <input
+            placeholder="بحث"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
 
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>الشركة</th>
-                  <th>الجوال</th>
-                  <th>الحالة</th>
-                  <th>الحرارة</th>
-                  <th>موعد المتابعة</th>
-                  <th>النقاط</th>
-                  <th>واتساب</th>
-                </tr>
-              </thead>
-              <tbody>
-                {processedLeads.map((lead) => (
-                  <tr key={lead.id}>
-                    <td>{lead.company}</td>
-                    <td>{lead.phone}</td>
-                    <td>{lead.status}</td>
-                    <td>
-                      <span className={`badge ${lead.temperature.toLowerCase()}`}>
-                        {lead.temperature}
-                      </span>
-                    </td>
-                    <td>{lead.followUp}</td>
-                    <td>{lead.score}</td>
-                    <td>
-                      <a className="wa-btn" href={getWhatsAppLink(lead)} target="_blank" rel="noreferrer">
-                        واتساب
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {tab === 'today' && (
-        <section className="cards-grid">
-          {processedLeads
-            .filter((lead) => lead.followUp === '2026-03-26')
-            .map((lead) => (
-              <div className="lead-card" key={lead.id}>
-                <h3>{lead.company}</h3>
-                <p>{lead.phone}</p>
-                <div className="mini-info">
-                  <span>الحالة: {lead.status}</span>
-                  <span>النقاط: {lead.score}</span>
-                  <span>الأولوية: {lead.priority}</span>
-                  <span>الإجراء: {lead.action}</span>
-                </div>
-                <a className="wa-btn full" href={getWhatsAppLink(lead)} target="_blank" rel="noreferrer">
-                  إرسال واتساب
-                </a>
-              </div>
-            ))}
-        </section>
+          {processedLeads.map((l) => (
+            <div key={l.id} className="card">
+              <h3>{l.company}</h3>
+              <p>{l.phone}</p>
+              <a href={getWhatsAppLink(l)} target="_blank">واتساب</a>
+            </div>
+          ))}
+        </>
       )}
 
       {tab === 'add' && (
-        <section className="panel">
-          <div className="panel-header">
-            <h2>إضافة عميل جديد</h2>
-          </div>
+        <>
+          <input placeholder="الشركة"
+            value={newLead.company}
+            onChange={(e) => setNewLead({...newLead, company:e.target.value})}
+          />
 
-          <div className="form-grid">
-            <input
-              className="form-input"
-              placeholder="اسم الشركة"
-              value={newLead.company}
-              onChange={(e) => setNewLead({ ...newLead, company: e.target.value })}
-            />
-            <input
-              className="form-input"
-              placeholder="رقم الجوال بصيغة 966"
-              value={newLead.phone}
-              onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })}
-            />
-            <input
-              className="form-input"
-              placeholder="عدد المشاريع"
-              value={newLead.projects}
-              onChange={(e) => setNewLead({ ...newLead, projects: e.target.value })}
-            />
-            <input
-              className="form-input"
-              placeholder="عدد الموظفين"
-              value={newLead.employees}
-              onChange={(e) => setNewLead({ ...newLead, employees: e.target.value })}
-            />
-            <input
-              className="form-input"
-              placeholder="طريقة الإدارة الحالية"
-              value={newLead.currentMethod}
-              onChange={(e) => setNewLead({ ...newLead, currentMethod: e.target.value })}
-            />
-            <input
-              className="form-input"
-              placeholder="موعد المتابعة YYYY-MM-DD"
-              value={newLead.followUp}
-              onChange={(e) => setNewLead({ ...newLead, followUp: e.target.value })}
-            />
+          <input placeholder="الجوال"
+            value={newLead.phone}
+            onChange={(e) => setNewLead({...newLead, phone:e.target.value})}
+          />
 
-            <select
-              className="form-input"
-              value={newLead.status}
-              onChange={(e) => setNewLead({ ...newLead, status: e.target.value })}
-            >
-              <option value="جديد">جديد</option>
-              <option value="تم التواصل">تم التواصل</option>
-              <option value="مهتم">مهتم</option>
-              <option value="غير مهتم">غير مهتم</option>
-            </select>
-
-            <select
-              className="form-input"
-              value={newLead.temperature}
-              onChange={(e) => setNewLead({ ...newLead, temperature: e.target.value })}
-            >
-              <option value="Hot">Hot</option>
-              <option value="Warm">Warm</option>
-              <option value="Cold">Cold</option>
-            </select>
-          </div>
-
-          <button className="primary-btn" onClick={addLead}>
-            إضافة العميل
-          </button>
-        </section>
+          <button onClick={addLead}>إضافة</button>
+        </>
       )}
     </div>
   )
