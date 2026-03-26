@@ -80,6 +80,13 @@ export default function App() {
     })
   }
 
+  function deleteLead(id) {
+    const confirmDelete = window.confirm('هل أنت متأكد من حذف العميل؟')
+    if (!confirmDelete) return
+
+    setLeads(leads.filter((lead) => lead.id !== id))
+  }
+
   const processedLeads = useMemo(() => {
     return leads
       .map((lead) => ({
@@ -134,6 +141,7 @@ export default function App() {
             <th>النقاط</th>
             <th>أفضلية الاتصال</th>
             <th>واتساب</th>
+            <th>حذف</th>
           </tr>
         </thead>
 
@@ -164,6 +172,15 @@ export default function App() {
                 >
                   واتساب
                 </a>
+              </td>
+
+              <td>
+                <button
+                  onClick={() => deleteLead(lead.id)}
+                  className="delete-btn"
+                >
+                  🗑️ حذف
+                </button>
               </td>
             </tr>
           ))}
