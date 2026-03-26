@@ -41,17 +41,21 @@ function getWhatsAppMessage(lead) {
 نقدم نظام CRM يساعدكم في إدارة العملاء بسهولة`
 }
 
+const emptyLead = {
+  company: '',
+  phone: '',
+  temperature: 'Warm',
+  status: 'جديد',
+}
+
 export default function App() {
   const [leads, setLeads] = useState(() => {
     const saved = localStorage.getItem('leads')
     return saved ? JSON.parse(saved) : initialLeads
   })
 
-  const [newLead, setNewLead] = useState({
-    company: '',
-    phone: '',
-    temperature: 'Warm',
-  })
+  const [newLead, setNewLead] = useState(emptyLead)
+  const [editingId, setEditingId] = useState(null)
 
   useEffect(() => {
     localStorage.setItem('leads', JSON.stringify(leads))
@@ -68,16 +72,50 @@ export default function App() {
       company: newLead.company,
       phone: newLead.phone,
       temperature: newLead.temperature,
-      status: 'جديد',
+      status: newLead.status,
     }
 
     setLeads([newItem, ...leads])
+    setNewLead(emptyLead)
+  }
 
+  function startEdit(lead) {
+    setEditingId(lead.id)
     setNewLead({
-      company: '',
-      phone: '',
-      temperature: 'Warm',
+      company: lead.company,
+      phone: lead.phone,
+      temperature: lead.temperature,
+      status: lead.status,
     })
+  }
+
+  function saveEdit() {
+    if (!newLead.company || !newLead.phone) {
+      alert('اكمل البيانات')
+      return
+    }
+
+    setLeads(
+      leads.map((lead) =>
+        lead.id === editingId
+          ? {
+              ...lead,
+              company: newLead.company,
+              phone: newLead.phone,
+              temperature: newLead.temperature,
+              status: newLead.status,
+            }
+          : lead
+      )
+    )
+
+    setEditingId(null)
+    setNewLead(emptyLead)
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setNewLead(emptyLead)
   }
 
   function deleteLead(id) {
@@ -85,6 +123,11 @@ export default function App() {
     if (!confirmDelete) return
 
     setLeads(leads.filter((lead) => lead.id !== id))
+
+    if (editingId === id) {
+      setEditingId(null)
+      setNewLead(emptyLead)
+    }
   }
 
   const processedLeads = useMemo(() => {
@@ -127,9 +170,30 @@ export default function App() {
           <option value="Warm">🟡 Warm</option>
         </select>
 
-        <button onClick={addLead} className="primary-btn">
-          ➕ إضافة عميل
-        </button>
+        <select
+          value={newLead.status}
+          onChange={(e) =>
+            setNewLead({ ...newLead, status: e.target.value })
+          }
+        >
+          <option value="جديد">جديد</option>
+          <option value="تم التواصل">تم التواصل</option>
+        </select>
+
+        {editingId ? (
+          <>
+            <button onClick={saveEdit} className="primary-btn">
+              💾 حفظ التعديل
+            </button>
+            <button onClick={cancelEdit} className="cancel-btn">
+              إلغاء
+            </button>
+          </>
+        ) : (
+          <button onClick={addLead} className="primary-btn">
+            ➕ إضافة عميل
+          </button>
+        )}
       </div>
 
       <table>
@@ -141,6 +205,7 @@ export default function App() {
             <th>النقاط</th>
             <th>أفضلية الاتصال</th>
             <th>واتساب</th>
+            <th>تعديل</th>
             <th>حذف</th>
           </tr>
         </thead>
@@ -172,6 +237,15 @@ export default function App() {
                 >
                   واتساب
                 </a>
+              </td>
+
+              <td>
+                <button
+                  onClick={() => startEdit(lead)}
+                  className="edit-btn"
+                >
+                  ✏️ تعديل
+                </button>
               </td>
 
               <td>
