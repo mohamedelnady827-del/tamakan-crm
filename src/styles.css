@@ -5,217 +5,24 @@ body {
   color: white;
 }
 
-.app {
-  padding: 20px;
-}
-
-.hero {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 25px;
-}
-
-.hero h1 {
-  margin: 0;
-}
-
-.hero-buttons {
-  display: flex;
-  gap: 10px;
-}
-
-.nav-btn {
-  background: #132a4a;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-}
-
-.nav-btn:hover {
-  background: #1e3a63;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  background: #132a4a;
-  padding: 15px;
-  border-radius: 10px;
+.container {
+  padding: 40px;
   text-align: center;
-}
-
-.panel {
-  background: #132a4a;
-  padding: 20px;
-  border-radius: 12px;
-}
-
-.panel-header {
-  margin-bottom: 15px;
-}
-
-.row-between {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.search-input {
-  padding: 8px;
-  border-radius: 6px;
-  border: none;
-}
-
-.table-wrap {
-  overflow-x: auto;
 }
 
 table {
   width: 100%;
+  margin-top: 20px;
   border-collapse: collapse;
 }
 
-th, td {
-  padding: 10px;
+th,
+td {
+  padding: 12px;
+  border-bottom: 1px solid #333;
   text-align: center;
 }
 
-thead {
-  background: #1e3a63;
-}
-
-tbody tr:nth-child(even) {
-  background: #0f2747;
-}
-
-.badge {
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-}
-
-.hot {
-  background: red;
-}
-
-.warm {
-  background: orange;
-}
-
-.cold {
-  background: gray;
-}
-
-.action-badge {
-  padding: 5px 10px;
-  border-radius: 6px;
-}
-
-.danger {
-  background: red;
-}
-
-.warn {
-  background: orange;
-}
-
-.ok {
-  background: green;
-}
-
-.wa-btn {
-  background: #25d366;
-  padding: 6px 10px;
-  border-radius: 6px;
-  color: white;
-  text-decoration: none;
-}
-
-.wa-btn.full {
-  display: block;
-  margin-top: 10px;
-  text-align: center;
-}
-
-.cards-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
-}
-
-.lead-card {
-  background: #132a4a;
-  padding: 15px;
-  border-radius: 10px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: 15px;
-}
-
-.form-input {
-  padding: 10px;
-  border-radius: 6px;
-  border: none;
-}
-
-.primary-btn {
-  background: #007bff;
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-}
-
-.primary-btn:hover {
-  background: #0056b3;
-}
-.wa-btn {
-  background: #25d366;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
-  text-decoration: none;
-  font-size: 12px;
-  display: inline-block;
-}
-/* زر واتساب */
-.wa-btn {
-  display: inline-block;
-  background: #25d366;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
-  text-decoration: none;
-  font-size: 14px;
-}
-
-/* حالات الاتصال */
-.danger {
-  background: red;
-  padding: 4px 8px;
-  border-radius: 5px;
-  color: white;
-}
-
-.warn {
-  background: orange;
-  padding: 4px 8px;
-  border-radius: 5px;
-  color: white;
-}
 .form-box {
   display: flex;
   gap: 10px;
@@ -267,54 +74,16 @@ tbody tr:nth-child(even) {
   border-radius: 5px;
   color: white;
 }
-.form-box {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
 
-.form-box input,
-.form-box select {
-  padding: 10px;
-  border-radius: 6px;
+.delete-btn {
+  background: #dc2626;
   border: none;
-}
-
-.primary-btn {
-  background: #00bfff;
-  border: none;
-  padding: 10px 15px;
+  padding: 6px 12px;
   border-radius: 6px;
   color: white;
   cursor: pointer;
 }
 
-.primary-btn:hover {
-  background: #0095cc;
-}
-
-.wa-btn {
-  display: inline-block;
-  background: #25d366;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
-  text-decoration: none;
-  font-size: 14px;
-}
-
-.danger {
-  background: red;
-  padding: 4px 8px;
-  border-radius: 5px;
-  color: white;
-}
-
-.warn {
-  background: orange;
-  padding: 4px 8px;
-  border-radius: 5px;
-  color: white;
+.delete-btn:hover {
+  background: #b91c1c;
 }
