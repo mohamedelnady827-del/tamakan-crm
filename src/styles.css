@@ -191,3 +191,28 @@ tbody tr:nth-child(even) {
   font-size: 12px;
   display: inline-block;
 }
+/* زر واتساب */
+.wa-btn {
+  display: inline-block;
+  background: #25d366;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+/* حالات الاتصال */
+.danger {
+  background: red;
+  padding: 4px 8px;
+  border-radius: 5px;
+  color: white;
+}
+
+.warn {
+  background: orange;
+  padding: 4px 8px;
+  border-radius: 5px;
+  color: white;
+}
