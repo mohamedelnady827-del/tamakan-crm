@@ -267,3 +267,54 @@ tbody tr:nth-child(even) {
   border-radius: 5px;
   color: white;
 }
+.form-box {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.form-box input,
+.form-box select {
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+}
+
+.primary-btn {
+  background: #00bfff;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+}
+
+.primary-btn:hover {
+  background: #0095cc;
+}
+
+.wa-btn {
+  display: inline-block;
+  background: #25d366;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.danger {
+  background: red;
+  padding: 4px 8px;
+  border-radius: 5px;
+  color: white;
+}
+
+.warn {
+  background: orange;
+  padding: 4px 8px;
+  border-radius: 5px;
+  color: white;
+}
