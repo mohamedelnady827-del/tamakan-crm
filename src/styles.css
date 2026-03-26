@@ -10,6 +10,7 @@ body {
   text-align: center;
 }
 
+/* 🔷 Dashboard */
 .stats-grid {
   display: grid;
   gap: 12px;
@@ -37,6 +38,7 @@ body {
   font-size: 24px;
 }
 
+/* 🔍 البحث */
 .top-bar {
   display: flex;
   gap: 10px;
@@ -52,6 +54,7 @@ body {
   border: none;
 }
 
+/* 🧾 الجدول */
 table {
   width: 100%;
   margin-top: 20px;
@@ -72,6 +75,7 @@ thead {
   background: #1d3b63;
 }
 
+/* 📝 الفورم */
 .form-box {
   display: flex;
   gap: 10px;
@@ -87,6 +91,7 @@ thead {
   border: none;
 }
 
+/* 🔵 زر رئيسي */
 .primary-btn {
   background: #00bfff;
   border: none;
@@ -100,6 +105,7 @@ thead {
   background: #0095cc;
 }
 
+/* ⚪ زر إلغاء */
 .cancel-btn {
   background: #6b7280;
   border: none;
@@ -113,6 +119,7 @@ thead {
   background: #4b5563;
 }
 
+/* 🟢 واتساب */
 .wa-btn {
   display: inline-block;
   background: #25d366;
@@ -123,6 +130,7 @@ thead {
   font-size: 14px;
 }
 
+/* 🔴 أولويّة عالية */
 .danger {
   background: red;
   padding: 4px 8px;
@@ -130,6 +138,7 @@ thead {
   color: white;
 }
 
+/* 🟡 متوسط */
 .warn {
   background: orange;
   padding: 4px 8px;
@@ -137,6 +146,7 @@ thead {
   color: white;
 }
 
+/* 🟢 لاحقًا */
 .ok-badge {
   background: #0f766e;
   padding: 4px 8px;
@@ -144,6 +154,7 @@ thead {
   color: white;
 }
 
+/* 🗑️ حذف */
 .delete-btn {
   background: #dc2626;
   border: none;
@@ -157,6 +168,7 @@ thead {
   background: #b91c1c;
 }
 
+/* ✏️ تعديل */
 .edit-btn {
   background: #f59e0b;
   border: none;
@@ -170,12 +182,14 @@ thead {
   background: #d97706;
 }
 
+/* 🔄 المرحلة */
 .stage-select {
   padding: 8px;
   border-radius: 6px;
   border: none;
 }
 
+/* 🎯 Stage Badge */
 .stage-badge {
   display: inline-block;
   padding: 5px 10px;
@@ -186,29 +200,33 @@ thead {
 
 .stage-lead {
   background: #334155;
-  color: white;
 }
 
 .stage-contacted {
   background: #2563eb;
-  color: white;
 }
 
 .stage-meeting {
   background: #7c3aed;
-  color: white;
 }
 
 .stage-proposal {
   background: #f59e0b;
-  color: white;
 }
 
 .stage-won {
   background: #16a34a;
-  color: white;
 }
 
+/* 📊 Chart */
+.chart-box {
+  background: #132a4a;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+/* 📱 Responsive */
 @media (max-width: 1100px) {
   .stats-grid-extended {
     grid-template-columns: repeat(2, 1fr);
