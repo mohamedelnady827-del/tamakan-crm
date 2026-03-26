@@ -113,3 +113,16 @@ td {
 .edit-btn:hover {
   background: #d97706;
 }
+.top-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  justify-content: center;
+}
+
+.top-bar input,
+.top-bar select {
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+}
