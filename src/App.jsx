@@ -20,22 +20,28 @@ const initialLeads = [
 
 function scoreLead(lead) {
   const tempScore = lead.temperature === 'Hot' ? 50 : 30
-  const statusScore = lead.status === 'تم التواصل' ? 10 : 5
+  const statusScore =
+    lead.status === 'تم التواصل' ? 10 :
+    lead.status === 'مهتم' ? 20 : 5
+
   return tempScore + statusScore
 }
 
 function getWhatsAppMessage(lead) {
   if (lead.temperature === 'Hot') {
     return `مرحبًا ${lead.company} 👋
-جاهزين نبدأ فورًا 🚀 هل يناسبكم اتصال الآن؟`
+جاهزين نبدأ معكم فورًا في نظام CRM 🚀
+هل يناسبكم اتصال الآن؟`
   }
 
   if (lead.temperature === 'Warm') {
     return `مرحبًا ${lead.company} 👋
-نحب نتابع معكم بخصوص النظام`
+نحب نتابع معكم بخصوص النظام
+هل يناسبكم وقت مناسب؟`
   }
 
-  return `مرحبًا ${lead.company}`
+  return `مرحبًا ${lead.company} 👋
+نقدم نظام CRM يساعدكم في إدارة العملاء بسهولة`
 }
 
 const emptyLead = {
@@ -53,8 +59,6 @@ export default function App() {
 
   const [newLead, setNewLead] = useState(emptyLead)
   const [editingId, setEditingId] = useState(null)
-
-  // 🔥 جديد
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
 
@@ -63,7 +67,10 @@ export default function App() {
   }, [leads])
 
   function addLead() {
-    if (!newLead.company || !newLead.phone) return
+    if (!newLead.company || !newLead.phone) {
+      alert('اكمل البيانات')
+      return
+    }
 
     const newItem = {
       id: Date.now(),
@@ -76,19 +83,45 @@ export default function App() {
 
   function startEdit(lead) {
     setEditingId(lead.id)
-    setNewLead(lead)
+    setNewLead({
+      company: lead.company,
+      phone: lead.phone,
+      temperature: lead.temperature,
+      status: lead.status,
+    })
   }
 
   function saveEdit() {
+    if (!newLead.company || !newLead.phone) {
+      alert('اكمل البيانات')
+      return
+    }
+
     setLeads(
-      leads.map((l) => (l.id === editingId ? { ...newLead, id: editingId } : l))
+      leads.map((lead) =>
+        lead.id === editingId ? { ...lead, ...newLead } : lead
+      )
     )
+
+    setEditingId(null)
+    setNewLead(emptyLead)
+  }
+
+  function cancelEdit() {
     setEditingId(null)
     setNewLead(emptyLead)
   }
 
   function deleteLead(id) {
-    setLeads(leads.filter((l) => l.id !== id))
+    const ok = window.confirm('هل أنت متأكد من حذف العميل؟')
+    if (!ok) return
+
+    setLeads(leads.filter((lead) => lead.id !== id))
+
+    if (editingId === id) {
+      setEditingId(null)
+      setNewLead(emptyLead)
+    }
   }
 
   const processedLeads = useMemo(() => {
@@ -98,22 +131,62 @@ export default function App() {
         score: scoreLead(lead),
       }))
       .filter((lead) => {
-        const matchSearch = lead.company.includes(search)
+        const q = search.trim()
+        const matchSearch =
+          !q ||
+          lead.company.includes(q) ||
+          lead.phone.includes(q) ||
+          lead.status.includes(q) ||
+          lead.temperature.includes(q)
+
         const matchFilter =
           filter === 'all' || lead.temperature === filter
+
         return matchSearch && matchFilter
       })
       .sort((a, b) => b.score - a.score)
   }, [leads, search, filter])
 
+  const stats = useMemo(() => {
+    return {
+      total: leads.length,
+      hot: leads.filter((lead) => lead.temperature === 'Hot').length,
+      warm: leads.filter((lead) => lead.temperature === 'Warm').length,
+      newCount: leads.filter((lead) => lead.status === 'جديد').length,
+      contacted: leads.filter((lead) => lead.status === 'تم التواصل').length,
+    }
+  }, [leads])
+
   return (
     <div className="container" dir="rtl">
       <h1>🚀 Tamakan CRM</h1>
 
-      {/* 🔥 البحث + الفلترة */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <span>إجمالي العملاء</span>
+          <strong>{stats.total}</strong>
+        </div>
+        <div className="stat-card">
+          <span>عملاء Hot</span>
+          <strong>{stats.hot}</strong>
+        </div>
+        <div className="stat-card">
+          <span>عملاء Warm</span>
+          <strong>{stats.warm}</strong>
+        </div>
+        <div className="stat-card">
+          <span>عملاء جدد</span>
+          <strong>{stats.newCount}</strong>
+        </div>
+        <div className="stat-card">
+          <span>تم التواصل</span>
+          <strong>{stats.contacted}</strong>
+        </div>
+      </div>
+
       <div className="top-bar">
         <input
-          placeholder="🔍 ابحث باسم الشركة"
+          placeholder="🔍 ابحث باسم الشركة أو الجوال أو الحالة"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -152,13 +225,29 @@ export default function App() {
           <option value="Warm">🟡 Warm</option>
         </select>
 
+        <select
+          value={newLead.status}
+          onChange={(e) =>
+            setNewLead({ ...newLead, status: e.target.value })
+          }
+        >
+          <option value="جديد">جديد</option>
+          <option value="تم التواصل">تم التواصل</option>
+          <option value="مهتم">مهتم</option>
+        </select>
+
         {editingId ? (
-          <button onClick={saveEdit} className="primary-btn">
-            💾 حفظ
-          </button>
+          <>
+            <button onClick={saveEdit} className="primary-btn">
+              💾 حفظ التعديل
+            </button>
+            <button onClick={cancelEdit} className="cancel-btn">
+              إلغاء
+            </button>
+          </>
         ) : (
           <button onClick={addLead} className="primary-btn">
-            ➕ إضافة
+            ➕ إضافة عميل
           </button>
         )}
       </div>
@@ -170,6 +259,7 @@ export default function App() {
             <th>الحالة</th>
             <th>الحرارة</th>
             <th>النقاط</th>
+            <th>أفضلية الاتصال</th>
             <th>واتساب</th>
             <th>تعديل</th>
             <th>حذف</th>
@@ -185,11 +275,20 @@ export default function App() {
               <td>{lead.score}</td>
 
               <td>
+                {lead.score > 40 ? (
+                  <span className="danger">اتصل الآن</span>
+                ) : (
+                  <span className="warn">اليوم</span>
+                )}
+              </td>
+
+              <td>
                 <a
                   href={`https://wa.me/${lead.phone}?text=${encodeURIComponent(
                     getWhatsAppMessage(lead)
                   )}`}
                   target="_blank"
+                  rel="noreferrer"
                   className="wa-btn"
                 >
                   واتساب
@@ -198,13 +297,13 @@ export default function App() {
 
               <td>
                 <button onClick={() => startEdit(lead)} className="edit-btn">
-                  ✏️
+                  ✏️ تعديل
                 </button>
               </td>
 
               <td>
                 <button onClick={() => deleteLead(lead.id)} className="delete-btn">
-                  🗑️
+                  🗑️ حذف
                 </button>
               </td>
             </tr>
