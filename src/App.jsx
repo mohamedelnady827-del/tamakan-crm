@@ -1,5 +1,5 @@
 import './styles.css'
-import { useMemo, useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 const initialLeads = [
   {
@@ -10,47 +10,7 @@ const initialLeads = [
     temperature: 'Hot',
     stage: 'Lead',
   },
-  {
-    id: 2,
-    company: 'شركة البناء الحديث',
-    phone: '966501112233',
-    status: 'تم التواصل',
-    temperature: 'Warm',
-    stage: 'Contacted',
-  },
 ]
-
-function scoreLead(lead) {
-  const tempScore = lead.temperature === 'Hot' ? 50 : 30
-  const statusScore =
-    lead.status === 'تم التواصل' ? 10 :
-    lead.status === 'مهتم' ? 20 : 5
-
-  const stageScore =
-    lead.stage === 'Won' ? 40 :
-    lead.stage === 'Proposal' ? 30 :
-    lead.stage === 'Meeting' ? 20 :
-    lead.stage === 'Contacted' ? 10 : 5
-
-  return tempScore + statusScore + stageScore
-}
-
-function getWhatsAppMessage(lead) {
-  if (lead.temperature === 'Hot') {
-    return `مرحبًا ${lead.company} 👋
-جاهزين نبدأ فورًا في نظام CRM 🚀
-هل يناسبكم اتصال الآن؟`
-  }
-
-  if (lead.temperature === 'Warm') {
-    return `مرحبًا ${lead.company} 👋
-نحب نتابع معكم بخصوص النظام
-هل يناسبكم وقت مناسب؟`
-  }
-
-  return `مرحبًا ${lead.company} 👋
-نقدم نظام CRM يساعدكم في إدارة العملاء بسهولة`
-}
 
 const emptyLead = {
   company: '',
@@ -69,8 +29,7 @@ export default function App() {
   const [newLead, setNewLead] = useState(emptyLead)
   const [editingId, setEditingId] = useState(null)
   const [search, setSearch] = useState('')
-  const [filterTemp, setFilterTemp] = useState('all')
-  const [filterStage, setFilterStage] = useState('all')
+  const [filter, setFilter] = useState('all')
 
   useEffect(() => {
     localStorage.setItem('leads', JSON.stringify(leads))
@@ -79,166 +38,82 @@ export default function App() {
   function addLead() {
     if (!newLead.company || !newLead.phone) return
 
-    const newItem = {
-      id: Date.now(),
-      ...newLead,
-    }
-
-    setLeads([newItem, ...leads])
-    setNewLead(emptyLead)
-  }
-
-  function startEdit(lead) {
-    setEditingId(lead.id)
-    setNewLead({
-      company: lead.company,
-      phone: lead.phone,
-      temperature: lead.temperature,
-      status: lead.status,
-      stage: lead.stage,
-    })
-  }
-
-  function saveEdit() {
-    if (!newLead.company || !newLead.phone) return
-
-    setLeads(
-      leads.map((lead) =>
-        lead.id === editingId ? { ...lead, ...newLead } : lead
-      )
-    )
-
-    setEditingId(null)
-    setNewLead(emptyLead)
-  }
-
-  function cancelEdit() {
-    setEditingId(null)
+    const item = { id: Date.now(), ...newLead }
+    setLeads([item, ...leads])
     setNewLead(emptyLead)
   }
 
   function deleteLead(id) {
-    const ok = window.confirm('هل أنت متأكد من حذف العميل؟')
-    if (!ok) return
+    setLeads(leads.filter(l => l.id !== id))
+  }
 
-    setLeads(leads.filter((lead) => lead.id !== id))
+  function startEdit(lead) {
+    setEditingId(lead.id)
+    setNewLead(lead)
+  }
 
-    if (editingId === id) {
-      setEditingId(null)
-      setNewLead(emptyLead)
-    }
+  function saveEdit() {
+    setLeads(leads.map(l => l.id === editingId ? newLead : l))
+    setEditingId(null)
+    setNewLead(emptyLead)
   }
 
   function updateStage(id, stage) {
-    setLeads(
-      leads.map((lead) =>
-        lead.id === id ? { ...lead, stage } : lead
-      )
-    )
+    setLeads(leads.map(l => l.id === id ? { ...l, stage } : l))
   }
 
-  const processedLeads = useMemo(() => {
-    return leads
-      .map((lead) => ({
-        ...lead,
-        score: scoreLead(lead),
-      }))
-      .filter((lead) => {
-        const q = search.trim()
-        const matchSearch =
-          !q ||
-          lead.company.includes(q) ||
-          lead.phone.includes(q) ||
-          lead.status.includes(q) ||
-          lead.temperature.includes(q) ||
-          lead.stage.includes(q)
-
-        const matchTemp =
-          filterTemp === 'all' || lead.temperature === filterTemp
-
-        const matchStage =
-          filterStage === 'all' || lead.stage === filterStage
-
-        return matchSearch && matchTemp && matchStage
-      })
-      .sort((a, b) => b.score - a.score)
-  }, [leads, search, filterTemp, filterStage])
-
-  const stats = useMemo(() => {
-    return {
-      total: leads.length,
-      hot: leads.filter((lead) => lead.temperature === 'Hot').length,
-      warm: leads.filter((lead) => lead.temperature === 'Warm').length,
-      lead: leads.filter((lead) => lead.stage === 'Lead').length,
-      contacted: leads.filter((lead) => lead.stage === 'Contacted').length,
-      meeting: leads.filter((lead) => lead.stage === 'Meeting').length,
-      proposal: leads.filter((lead) => lead.stage === 'Proposal').length,
-      won: leads.filter((lead) => lead.stage === 'Won').length,
-    }
-  }, [leads])
+  const filtered = useMemo(() => {
+    return leads.filter(l => {
+      return (
+        (filter === 'all' || l.temperature === filter) &&
+        l.company.includes(search)
+      )
+    })
+  }, [leads, search, filter])
 
   return (
     <div className="container" dir="rtl">
       <h1>🚀 Tamakan CRM</h1>
 
+      {/* 🔥 Dashboard */}
       <div className="stats-grid stats-grid-extended">
         <div className="stat-card">
-          <span>إجمالي العملاء</span>
-          <strong>{stats.total}</strong>
+          <span>📊 العملاء</span>
+          <strong>{leads.length}</strong>
         </div>
+
         <div className="stat-card">
-          <span>Hot</span>
-          <strong>{stats.hot}</strong>
+          <span>🔥 Hot</span>
+          <strong>{leads.filter(l => l.temperature === 'Hot').length}</strong>
         </div>
+
         <div className="stat-card">
-          <span>Warm</span>
-          <strong>{stats.warm}</strong>
+          <span>🟡 Warm</span>
+          <strong>{leads.filter(l => l.temperature === 'Warm').length}</strong>
         </div>
+
         <div className="stat-card">
-          <span>Lead</span>
-          <strong>{stats.lead}</strong>
-        </div>
-        <div className="stat-card">
-          <span>Contacted</span>
-          <strong>{stats.contacted}</strong>
-        </div>
-        <div className="stat-card">
-          <span>Meeting</span>
-          <strong>{stats.meeting}</strong>
-        </div>
-        <div className="stat-card">
-          <span>Proposal</span>
-          <strong>{stats.proposal}</strong>
-        </div>
-        <div className="stat-card">
-          <span>Won</span>
-          <strong>{stats.won}</strong>
+          <span>💰 Won</span>
+          <strong>{leads.filter(l => l.stage === 'Won').length}</strong>
         </div>
       </div>
 
+      {/* 🔍 Search */}
       <div className="top-bar">
         <input
-          placeholder="🔍 ابحث باسم الشركة أو الجوال أو المرحلة"
+          placeholder="ابحث"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        <select value={filterTemp} onChange={(e) => setFilterTemp(e.target.value)}>
-          <option value="all">كل الدرجات</option>
-          <option value="Hot">🔥 Hot</option>
-          <option value="Warm">🟡 Warm</option>
-        </select>
-
-        <select value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
-          <option value="all">كل المراحل</option>
-          <option value="Lead">Lead</option>
-          <option value="Contacted">Contacted</option>
-          <option value="Meeting">Meeting</option>
-          <option value="Proposal">Proposal</option>
-          <option value="Won">Won</option>
+        <select onChange={(e) => setFilter(e.target.value)}>
+          <option value="all">الكل</option>
+          <option value="Hot">Hot</option>
+          <option value="Warm">Warm</option>
         </select>
       </div>
 
+      {/* 📝 Form */}
       <div className="form-box">
         <input
           placeholder="اسم الشركة"
@@ -262,19 +137,8 @@ export default function App() {
             setNewLead({ ...newLead, temperature: e.target.value })
           }
         >
-          <option value="Hot">🔥 Hot</option>
-          <option value="Warm">🟡 Warm</option>
-        </select>
-
-        <select
-          value={newLead.status}
-          onChange={(e) =>
-            setNewLead({ ...newLead, status: e.target.value })
-          }
-        >
-          <option value="جديد">جديد</option>
-          <option value="تم التواصل">تم التواصل</option>
-          <option value="مهتم">مهتم</option>
+          <option value="Hot">Hot</option>
+          <option value="Warm">Warm</option>
         </select>
 
         <select
@@ -291,102 +155,48 @@ export default function App() {
         </select>
 
         {editingId ? (
-          <>
-            <button onClick={saveEdit} className="primary-btn">
-              💾 حفظ التعديل
-            </button>
-            <button onClick={cancelEdit} className="cancel-btn">
-              إلغاء
-            </button>
-          </>
+          <button onClick={saveEdit} className="primary-btn">
+            💾 حفظ
+          </button>
         ) : (
           <button onClick={addLead} className="primary-btn">
-            ➕ إضافة عميل
+            ➕ إضافة
           </button>
         )}
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>الشركة</th>
-            <th>الحالة</th>
-            <th>الحرارة</th>
-            <th>المرحلة</th>
-            <th>النقاط</th>
-            <th>أفضلية الاتصال</th>
-            <th>واتساب</th>
-            <th>تحديث المرحلة</th>
-            <th>تعديل</th>
-            <th>حذف</th>
-          </tr>
-        </thead>
+      {/* 📊 Pipeline */}
+      <div className="pipeline">
+        {['Lead', 'Contacted', 'Meeting', 'Proposal', 'Won'].map(stage => (
+          <div key={stage} className="pipe-col">
+            <h3>{stage}</h3>
 
-        <tbody>
-          {processedLeads.map((lead) => (
-            <tr key={lead.id}>
-              <td>{lead.company}</td>
-              <td>{lead.status}</td>
-              <td>{lead.temperature}</td>
-              <td>
-                <span className={`stage-badge stage-${lead.stage.toLowerCase()}`}>
-                  {lead.stage}
-                </span>
-              </td>
-              <td>{lead.score}</td>
+            {leads
+              .filter(l => l.stage === stage)
+              .map(l => (
+                <div key={l.id} className="card">
+                  <b>{l.company}</b>
 
-              <td>
-                {lead.score > 70 ? (
-                  <span className="danger">اتصل الآن</span>
-                ) : lead.score > 45 ? (
-                  <span className="warn">اليوم</span>
-                ) : (
-                  <span className="ok-badge">لاحقًا</span>
-                )}
-              </td>
+                  <div className="actions">
+                    <button onClick={() => startEdit(l)}>✏️</button>
+                    <button onClick={() => deleteLead(l.id)}>🗑️</button>
+                  </div>
 
-              <td>
-                <a
-                  href={`https://wa.me/${lead.phone}?text=${encodeURIComponent(
-                    getWhatsAppMessage(lead)
-                  )}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="wa-btn"
-                >
-                  واتساب
-                </a>
-              </td>
-
-              <td>
-                <select
-                  className="stage-select"
-                  value={lead.stage}
-                  onChange={(e) => updateStage(lead.id, e.target.value)}
-                >
-                  <option value="Lead">Lead</option>
-                  <option value="Contacted">Contacted</option>
-                  <option value="Meeting">Meeting</option>
-                  <option value="Proposal">Proposal</option>
-                  <option value="Won">Won</option>
-                </select>
-              </td>
-
-              <td>
-                <button onClick={() => startEdit(lead)} className="edit-btn">
-                  ✏️ تعديل
-                </button>
-              </td>
-
-              <td>
-                <button onClick={() => deleteLead(lead.id)} className="delete-btn">
-                  🗑️ حذف
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  <select
+                    value={l.stage}
+                    onChange={(e) => updateStage(l.id, e.target.value)}
+                  >
+                    <option>Lead</option>
+                    <option>Contacted</option>
+                    <option>Meeting</option>
+                    <option>Proposal</option>
+                    <option>Won</option>
+                  </select>
+                </div>
+              ))}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
