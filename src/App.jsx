@@ -1,5 +1,5 @@
 import './styles.css'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 
 const initialLeads = [
   {
@@ -42,8 +42,10 @@ function getWhatsAppMessage(lead) {
 }
 
 export default function App() {
-  const [leads, setLeads] = useState(initialLeads)
-
+const [leads, setLeads] = useState(() => {
+  const saved = localStorage.getItem('leads')
+  return saved ? JSON.parse(saved) : initialLeads
+})
   const [newLead, setNewLead] = useState({
     company: '',
     phone: '',
@@ -55,7 +57,9 @@ export default function App() {
       alert('اكمل البيانات')
       return
     }
-
+useEffect(() => {
+  localStorage.setItem('leads', JSON.stringify(leads))
+}, [leads])
     const newItem = {
       id: Date.now(),
       company: newLead.company,
