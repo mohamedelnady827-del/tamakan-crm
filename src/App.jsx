@@ -18,16 +18,12 @@ const initialLeads = [
   },
 ]
 
-// حساب النقاط
 function scoreLead(lead) {
   const tempScore = lead.temperature === 'Hot' ? 50 : 30
-  const statusScore =
-    lead.status === 'تم التواصل' ? 10 : 5
-
+  const statusScore = lead.status === 'تم التواصل' ? 10 : 5
   return tempScore + statusScore
 }
 
-// رسائل واتساب الذكية
 function getWhatsAppMessage(lead) {
   if (lead.temperature === 'Hot') {
     return `مرحبًا ${lead.company} 👋
@@ -46,7 +42,36 @@ function getWhatsAppMessage(lead) {
 }
 
 export default function App() {
-  const [leads] = useState(initialLeads)
+  const [leads, setLeads] = useState(initialLeads)
+
+  const [newLead, setNewLead] = useState({
+    company: '',
+    phone: '',
+    temperature: 'Warm',
+  })
+
+  function addLead() {
+    if (!newLead.company || !newLead.phone) {
+      alert('اكمل البيانات')
+      return
+    }
+
+    const newItem = {
+      id: Date.now(),
+      company: newLead.company,
+      phone: newLead.phone,
+      temperature: newLead.temperature,
+      status: 'جديد',
+    }
+
+    setLeads([newItem, ...leads])
+
+    setNewLead({
+      company: '',
+      phone: '',
+      temperature: 'Warm',
+    })
+  }
 
   const processedLeads = useMemo(() => {
     return leads
@@ -60,6 +85,38 @@ export default function App() {
   return (
     <div className="container" dir="rtl">
       <h1>🚀 Tamakan CRM</h1>
+
+      <div className="form-box">
+        <input
+          placeholder="اسم الشركة"
+          value={newLead.company}
+          onChange={(e) =>
+            setNewLead({ ...newLead, company: e.target.value })
+          }
+        />
+
+        <input
+          placeholder="رقم الجوال"
+          value={newLead.phone}
+          onChange={(e) =>
+            setNewLead({ ...newLead, phone: e.target.value })
+          }
+        />
+
+        <select
+          value={newLead.temperature}
+          onChange={(e) =>
+            setNewLead({ ...newLead, temperature: e.target.value })
+          }
+        >
+          <option value="Hot">🔥 Hot</option>
+          <option value="Warm">🟡 Warm</option>
+        </select>
+
+        <button onClick={addLead} className="primary-btn">
+          ➕ إضافة عميل
+        </button>
+      </div>
 
       <table>
         <thead>
@@ -82,7 +139,7 @@ export default function App() {
               <td>{lead.score}</td>
 
               <td>
-                {lead.score > 60 ? (
+                {lead.score > 40 ? (
                   <span className="danger">اتصل الآن</span>
                 ) : (
                   <span className="warn">اليوم</span>
