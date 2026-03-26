@@ -8,6 +8,7 @@ const initialLeads = [
     phone: '966553909589',
     status: 'جديد',
     temperature: 'Hot',
+    stage: 'Lead',
   },
   {
     id: 2,
@@ -15,6 +16,7 @@ const initialLeads = [
     phone: '966501112233',
     status: 'تم التواصل',
     temperature: 'Warm',
+    stage: 'Contacted',
   },
 ]
 
@@ -24,13 +26,19 @@ function scoreLead(lead) {
     lead.status === 'تم التواصل' ? 10 :
     lead.status === 'مهتم' ? 20 : 5
 
-  return tempScore + statusScore
+  const stageScore =
+    lead.stage === 'Won' ? 40 :
+    lead.stage === 'Proposal' ? 30 :
+    lead.stage === 'Meeting' ? 20 :
+    lead.stage === 'Contacted' ? 10 : 5
+
+  return tempScore + statusScore + stageScore
 }
 
 function getWhatsAppMessage(lead) {
   if (lead.temperature === 'Hot') {
     return `مرحبًا ${lead.company} 👋
-جاهزين نبدأ معكم فورًا في نظام CRM 🚀
+جاهزين نبدأ فورًا في نظام CRM 🚀
 هل يناسبكم اتصال الآن؟`
   }
 
@@ -49,6 +57,7 @@ const emptyLead = {
   phone: '',
   temperature: 'Warm',
   status: 'جديد',
+  stage: 'Lead',
 }
 
 export default function App() {
@@ -60,17 +69,15 @@ export default function App() {
   const [newLead, setNewLead] = useState(emptyLead)
   const [editingId, setEditingId] = useState(null)
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('all')
+  const [filterTemp, setFilterTemp] = useState('all')
+  const [filterStage, setFilterStage] = useState('all')
 
   useEffect(() => {
     localStorage.setItem('leads', JSON.stringify(leads))
   }, [leads])
 
   function addLead() {
-    if (!newLead.company || !newLead.phone) {
-      alert('اكمل البيانات')
-      return
-    }
+    if (!newLead.company || !newLead.phone) return
 
     const newItem = {
       id: Date.now(),
@@ -88,14 +95,12 @@ export default function App() {
       phone: lead.phone,
       temperature: lead.temperature,
       status: lead.status,
+      stage: lead.stage,
     })
   }
 
   function saveEdit() {
-    if (!newLead.company || !newLead.phone) {
-      alert('اكمل البيانات')
-      return
-    }
+    if (!newLead.company || !newLead.phone) return
 
     setLeads(
       leads.map((lead) =>
@@ -124,6 +129,14 @@ export default function App() {
     }
   }
 
+  function updateStage(id, stage) {
+    setLeads(
+      leads.map((lead) =>
+        lead.id === id ? { ...lead, stage } : lead
+      )
+    )
+  }
+
   const processedLeads = useMemo(() => {
     return leads
       .map((lead) => ({
@@ -137,23 +150,30 @@ export default function App() {
           lead.company.includes(q) ||
           lead.phone.includes(q) ||
           lead.status.includes(q) ||
-          lead.temperature.includes(q)
+          lead.temperature.includes(q) ||
+          lead.stage.includes(q)
 
-        const matchFilter =
-          filter === 'all' || lead.temperature === filter
+        const matchTemp =
+          filterTemp === 'all' || lead.temperature === filterTemp
 
-        return matchSearch && matchFilter
+        const matchStage =
+          filterStage === 'all' || lead.stage === filterStage
+
+        return matchSearch && matchTemp && matchStage
       })
       .sort((a, b) => b.score - a.score)
-  }, [leads, search, filter])
+  }, [leads, search, filterTemp, filterStage])
 
   const stats = useMemo(() => {
     return {
       total: leads.length,
       hot: leads.filter((lead) => lead.temperature === 'Hot').length,
       warm: leads.filter((lead) => lead.temperature === 'Warm').length,
-      newCount: leads.filter((lead) => lead.status === 'جديد').length,
-      contacted: leads.filter((lead) => lead.status === 'تم التواصل').length,
+      lead: leads.filter((lead) => lead.stage === 'Lead').length,
+      contacted: leads.filter((lead) => lead.stage === 'Contacted').length,
+      meeting: leads.filter((lead) => lead.stage === 'Meeting').length,
+      proposal: leads.filter((lead) => lead.stage === 'Proposal').length,
+      won: leads.filter((lead) => lead.stage === 'Won').length,
     }
   }, [leads])
 
@@ -161,40 +181,61 @@ export default function App() {
     <div className="container" dir="rtl">
       <h1>🚀 Tamakan CRM</h1>
 
-      <div className="stats-grid">
+      <div className="stats-grid stats-grid-extended">
         <div className="stat-card">
           <span>إجمالي العملاء</span>
           <strong>{stats.total}</strong>
         </div>
         <div className="stat-card">
-          <span>عملاء Hot</span>
+          <span>Hot</span>
           <strong>{stats.hot}</strong>
         </div>
         <div className="stat-card">
-          <span>عملاء Warm</span>
+          <span>Warm</span>
           <strong>{stats.warm}</strong>
         </div>
         <div className="stat-card">
-          <span>عملاء جدد</span>
-          <strong>{stats.newCount}</strong>
+          <span>Lead</span>
+          <strong>{stats.lead}</strong>
         </div>
         <div className="stat-card">
-          <span>تم التواصل</span>
+          <span>Contacted</span>
           <strong>{stats.contacted}</strong>
+        </div>
+        <div className="stat-card">
+          <span>Meeting</span>
+          <strong>{stats.meeting}</strong>
+        </div>
+        <div className="stat-card">
+          <span>Proposal</span>
+          <strong>{stats.proposal}</strong>
+        </div>
+        <div className="stat-card">
+          <span>Won</span>
+          <strong>{stats.won}</strong>
         </div>
       </div>
 
       <div className="top-bar">
         <input
-          placeholder="🔍 ابحث باسم الشركة أو الجوال أو الحالة"
+          placeholder="🔍 ابحث باسم الشركة أو الجوال أو المرحلة"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-          <option value="all">الكل</option>
+        <select value={filterTemp} onChange={(e) => setFilterTemp(e.target.value)}>
+          <option value="all">كل الدرجات</option>
           <option value="Hot">🔥 Hot</option>
           <option value="Warm">🟡 Warm</option>
+        </select>
+
+        <select value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
+          <option value="all">كل المراحل</option>
+          <option value="Lead">Lead</option>
+          <option value="Contacted">Contacted</option>
+          <option value="Meeting">Meeting</option>
+          <option value="Proposal">Proposal</option>
+          <option value="Won">Won</option>
         </select>
       </div>
 
@@ -236,6 +277,19 @@ export default function App() {
           <option value="مهتم">مهتم</option>
         </select>
 
+        <select
+          value={newLead.stage}
+          onChange={(e) =>
+            setNewLead({ ...newLead, stage: e.target.value })
+          }
+        >
+          <option value="Lead">Lead</option>
+          <option value="Contacted">Contacted</option>
+          <option value="Meeting">Meeting</option>
+          <option value="Proposal">Proposal</option>
+          <option value="Won">Won</option>
+        </select>
+
         {editingId ? (
           <>
             <button onClick={saveEdit} className="primary-btn">
@@ -258,9 +312,11 @@ export default function App() {
             <th>الشركة</th>
             <th>الحالة</th>
             <th>الحرارة</th>
+            <th>المرحلة</th>
             <th>النقاط</th>
             <th>أفضلية الاتصال</th>
             <th>واتساب</th>
+            <th>تحديث المرحلة</th>
             <th>تعديل</th>
             <th>حذف</th>
           </tr>
@@ -272,13 +328,20 @@ export default function App() {
               <td>{lead.company}</td>
               <td>{lead.status}</td>
               <td>{lead.temperature}</td>
+              <td>
+                <span className={`stage-badge stage-${lead.stage.toLowerCase()}`}>
+                  {lead.stage}
+                </span>
+              </td>
               <td>{lead.score}</td>
 
               <td>
-                {lead.score > 40 ? (
+                {lead.score > 70 ? (
                   <span className="danger">اتصل الآن</span>
-                ) : (
+                ) : lead.score > 45 ? (
                   <span className="warn">اليوم</span>
+                ) : (
+                  <span className="ok-badge">لاحقًا</span>
                 )}
               </td>
 
@@ -293,6 +356,20 @@ export default function App() {
                 >
                   واتساب
                 </a>
+              </td>
+
+              <td>
+                <select
+                  className="stage-select"
+                  value={lead.stage}
+                  onChange={(e) => updateStage(lead.id, e.target.value)}
+                >
+                  <option value="Lead">Lead</option>
+                  <option value="Contacted">Contacted</option>
+                  <option value="Meeting">Meeting</option>
+                  <option value="Proposal">Proposal</option>
+                  <option value="Won">Won</option>
+                </select>
               </td>
 
               <td>
