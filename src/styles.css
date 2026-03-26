@@ -246,3 +246,28 @@ thead {
     font-size: 13px;
   }
 }
+.pipeline {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.pipe-col {
+  flex: 1;
+  background: #132a4a;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.card {
+  background: #1d3b63;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 8px;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+}
