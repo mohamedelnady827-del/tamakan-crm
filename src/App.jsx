@@ -1,7 +1,7 @@
 import './styles.css'
 import { useEffect, useState } from 'react'
 
-// 🔥 Firebase
+// Firebase
 import { initializeApp } from "firebase/app"
 import {
   getFirestore,
@@ -13,9 +13,8 @@ import {
   onSnapshot
 } from "firebase/firestore"
 
-// 🔥 إعداد Firebase (من عندك)
 const firebaseConfig = {
-  apiKey: "AIzaSyB53c1aa_CGtDzE0JnUQjbntYVRBQmx14",
+  apiKey: "AIzaSyB53c1aa_CGtDzE0JnUQjbzntYVRBQmx14",
   authDomain: "tamakan-crm.firebaseapp.com",
   projectId: "tamakan-crm",
   storageBucket: "tamakan-crm.firebasestorage.app",
@@ -31,12 +30,12 @@ export default function App() {
   const [newLead, setNewLead] = useState({
     company: '',
     phone: '',
-    temperature: 'Warm'
+    temperature: 'Warm',
+    stage: 'Lead'
   })
 
   const [editingId, setEditingId] = useState(null)
 
-  // 🔥 تحميل البيانات من Firebase
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "leads"), (snapshot) => {
       const data = snapshot.docs.map(doc => ({
@@ -49,7 +48,6 @@ export default function App() {
     return () => unsubscribe()
   }, [])
 
-  // 🔥 إضافة عميل
   async function addLead() {
     if (!newLead.company || !newLead.phone) {
       alert('اكمل البيانات')
@@ -61,26 +59,56 @@ export default function App() {
       status: 'جديد'
     })
 
-    setNewLead({ company: '', phone: '', temperature: 'Warm' })
+    setNewLead({
+      company: '',
+      phone: '',
+      temperature: 'Warm',
+      stage: 'Lead'
+    })
   }
 
-  // 🔥 حذف
   async function deleteLead(id) {
     await deleteDoc(doc(db, "leads", id))
   }
 
-  // 🔥 تعديل
   async function updateLead(lead) {
     const ref = doc(db, "leads", lead.id)
     await updateDoc(ref, lead)
     setEditingId(null)
   }
 
+  function updateStage(id, stage) {
+    setLeads(
+      leads.map(l => l.id === id ? { ...l, stage } : l)
+    )
+  }
+
   return (
     <div className="container" dir="rtl">
       <h1>🚀 Tamakan CRM</h1>
 
-      {/* 🔥 الفورم */}
+      <div className="stats-grid stats-grid-extended">
+        <div className="stat-card">
+          <span>📊 العملاء</span>
+          <strong>{leads.length}</strong>
+        </div>
+
+        <div className="stat-card">
+          <span>🔥 Hot</span>
+          <strong>{leads.filter(l => l.temperature === 'Hot').length}</strong>
+        </div>
+
+        <div className="stat-card">
+          <span>🟡 Warm</span>
+          <strong>{leads.filter(l => l.temperature === 'Warm').length}</strong>
+        </div>
+
+        <div className="stat-card">
+          <span>💰 Won</span>
+          <strong>{leads.filter(l => l.stage === 'Won').length}</strong>
+        </div>
+      </div>
+
       <div className="form-box">
         <input
           placeholder="اسم الشركة"
@@ -102,72 +130,70 @@ export default function App() {
           <option>Warm</option>
         </select>
 
+        <select
+          value={newLead.stage}
+          onChange={e => setNewLead({ ...newLead, stage: e.target.value })}
+        >
+          <option>Lead</option>
+          <option>Contacted</option>
+          <option>Meeting</option>
+          <option>Proposal</option>
+          <option>Won</option>
+        </select>
+
         <button className="primary-btn" onClick={addLead}>
-          إضافة
+          ➕ إضافة
         </button>
       </div>
 
-      {/* 🔥 الجدول */}
-      <table>
-        <thead>
-          <tr>
-            <th>الشركة</th>
-            <th>الحالة</th>
-            <th>الحرارة</th>
-            <th>واتساب</th>
-            <th>إدارة</th>
-          </tr>
-        </thead>
+      <div className="pipeline">
+        {['Lead', 'Contacted', 'Meeting', 'Proposal', 'Won'].map(stage => (
+          <div key={stage} className="pipe-col">
+            <h3>{stage}</h3>
 
-        <tbody>
-          {leads.map((lead) => (
-            <tr key={lead.id}>
-              <td>
-                {editingId === lead.id ? (
-                  <input
-                    value={lead.company}
-                    onChange={(e) =>
-                      setLeads(leads.map(l =>
-                        l.id === lead.id ? { ...l, company: e.target.value } : l
-                      ))
-                    }
-                  />
-                ) : (
-                  lead.company
-                )}
-              </td>
+            {leads
+              .filter(l => l.stage === stage)
+              .map(lead => (
+                <div key={lead.id} className="card">
+                  <b>{lead.company}</b>
 
-              <td>{lead.status}</td>
+                  <div style={{ marginTop: '8px' }}>
+                    <a
+                      href={`https://wa.me/${lead.phone}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="wa-btn"
+                    >
+                      📲 فتح واتساب
+                    </a>
+                  </div>
 
-              <td>
-                <span className={lead.temperature === 'Hot' ? 'danger' : 'warn'}>
-                  {lead.temperature}
-                </span>
-              </td>
+                  <div className="actions" style={{ marginTop: '10px' }}>
+                    {editingId === lead.id ? (
+                      <button onClick={() => updateLead(lead)}>💾 حفظ</button>
+                    ) : (
+                      <button onClick={() => setEditingId(lead.id)}>✏️</button>
+                    )}
 
-              <td>
-                <a
-                  href={`https://wa.me/${lead.phone}`}
-                  target="_blank"
-                  className="wa-btn"
-                >
-                  واتساب
-                </a>
-              </td>
+                    <button onClick={() => deleteLead(lead.id)}>🗑️</button>
+                  </div>
 
-              <td>
-                {editingId === lead.id ? (
-                  <button onClick={() => updateLead(lead)}>💾 حفظ</button>
-                ) : (
-                  <button onClick={() => setEditingId(lead.id)}>✏️ تعديل</button>
-                )}
-
-                <button onClick={() => deleteLead(lead.id)}>🗑 حذف</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  <select
+                    value={lead.stage}
+                    onChange={(e) => updateStage(lead.id, e.target.value)}
+                    style={{ marginTop: '10px' }}
+                  >
+                    <option>Lead</option>
+                    <option>Contacted</option>
+                    <option>Meeting</option>
+                    <option>Proposal</option>
+                    <option>Won</option>
+                  </select>
+                </div>
+              ))}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
