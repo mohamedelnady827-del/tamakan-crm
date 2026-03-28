@@ -33,6 +33,20 @@ const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
 const storage = getStorage(app)
 
+const stages = ['Lead', 'Contacted', 'Meeting', 'Proposal', 'Won']
+const serviceOptions = [
+  'برنامج بصمة',
+  'OPSS360',
+  'نظام CRM',
+  'موقع إلكتروني',
+  'تطبيق جوال',
+  'متجر إلكتروني',
+  'نظام داخلي للشركات',
+  'نقاط بيع POS',
+  'دعم فني',
+  'خدمات أخرى'
+]
+
 const sampleLead = {
   company: 'تمكن لتقنية المعلومات',
   phone: '966553909589',
@@ -40,11 +54,18 @@ const sampleLead = {
   temperature: 'Hot',
   stage: 'Lead',
   status: 'جديد',
-  dealAmount: 0,
+  serviceType: 'برنامج بصمة',
+  needDescription: 'العميل يحتاج نظام حضور وانصراف وربط تقارير الموظفين',
+  offerDate: '',
+  offerAmount: 0,
+  paidAmount: 0,
+  contractNumber: '',
+  contractDate: '',
+  contractSigned: false,
   closed: false,
   comments: [
     {
-      text: 'تم إنشاء العميل في النظام',
+      text: 'تمت إضافة العميل إلى النظام',
       createdAt: new Date().toISOString()
     }
   ],
@@ -58,13 +79,34 @@ const emptyLead = {
   temperature: 'Warm',
   stage: 'Lead',
   status: 'جديد',
-  dealAmount: '',
+  serviceType: 'برنامج بصمة',
+  needDescription: '',
+  offerDate: '',
+  offerAmount: '',
+  paidAmount: '',
+  contractNumber: '',
+  contractDate: '',
+  contractSigned: false,
   closed: false,
   comments: [],
   files: []
 }
 
-const stages = ['Lead', 'Contacted', 'Meeting', 'Proposal', 'Won']
+function toNumber(value) {
+  const num = Number(value || 0)
+  return Number.isNaN(num) ? 0 : num
+}
+
+function getPendingAmount(lead) {
+  const offer = toNumber(lead.offerAmount)
+  const paid = toNumber(lead.paidAmount)
+  const pending = offer - paid
+  return pending > 0 ? pending : 0
+}
+
+function formatMoney(value) {
+  return new Intl.NumberFormat('en-US').format(toNumber(value))
+}
 
 export default function App() {
   const [leads, setLeads] = useState([])
@@ -111,7 +153,11 @@ export default function App() {
   const stats = useMemo(() => {
     const wonLeads = leads.filter((l) => l.stage === 'Won' || l.closed)
     const totalWonAmount = wonLeads.reduce(
-      (sum, item) => sum + Number(item.dealAmount || 0),
+      (sum, item) => sum + toNumber(item.offerAmount),
+      0
+    )
+    const totalPendingAmount = leads.reduce(
+      (sum, item) => sum + getPendingAmount(item),
       0
     )
 
@@ -120,7 +166,8 @@ export default function App() {
       hot: leads.filter((l) => l.temperature === 'Hot').length,
       warm: leads.filter((l) => l.temperature === 'Warm').length,
       won: wonLeads.length,
-      wonAmount: totalWonAmount
+      wonAmount: totalWonAmount,
+      pendingAmount: totalPendingAmount
     }
   }, [leads])
 
@@ -132,8 +179,9 @@ export default function App() {
 
     await addDoc(collection(db, 'leads'), {
       ...newLead,
-      dealAmount: Number(newLead.dealAmount || 0),
-      closed: newLead.stage === 'Won',
+      offerAmount: toNumber(newLead.offerAmount),
+      paidAmount: toNumber(newLead.paidAmount),
+      closed: newLead.stage === 'Won' ? true : Boolean(newLead.closed),
       comments: [
         {
           text: 'تم إضافة العميل',
@@ -164,7 +212,8 @@ export default function App() {
 
     await updateDoc(doc(db, 'leads', id), {
       ...payload,
-      dealAmount: Number(payload.dealAmount || 0),
+      offerAmount: toNumber(payload.offerAmount),
+      paidAmount: toNumber(payload.paidAmount),
       closed: payload.stage === 'Won' || Boolean(payload.closed)
     })
   }
@@ -175,7 +224,7 @@ export default function App() {
 
     await updateDoc(doc(db, 'leads', id), {
       stage,
-      closed: stage === 'Won' ? true : lead.closed
+      closed: stage === 'Won' ? true : Boolean(lead.closed)
     })
   }
 
@@ -235,10 +284,6 @@ export default function App() {
     }
   }
 
-  function formatMoney(value) {
-    return new Intl.NumberFormat('en-US').format(Number(value || 0))
-  }
-
   if (loading) {
     return (
       <div className="container" dir="rtl">
@@ -274,8 +319,13 @@ export default function App() {
         </div>
 
         <div className="stat-card">
-          <span>💵 إجمالي المبالغ</span>
+          <span>💵 إجمالي العقود</span>
           <strong>{formatMoney(stats.wonAmount)}</strong>
+        </div>
+
+        <div className="stat-card">
+          <span>⏳ المبلغ المعلّق</span>
+          <strong>{formatMoney(stats.pendingAmount)}</strong>
         </div>
       </div>
 
@@ -299,10 +349,19 @@ export default function App() {
         />
 
         <select
+          value={newLead.serviceType}
+          onChange={(e) => setNewLead({ ...newLead, serviceType: e.target.value })}
+        >
+          {serviceOptions.map((service) => (
+            <option key={service} value={service}>
+              {service}
+            </option>
+          ))}
+        </select>
+
+        <select
           value={newLead.temperature}
-          onChange={(e) =>
-            setNewLead({ ...newLead, temperature: e.target.value })
-          }
+          onChange={(e) => setNewLead({ ...newLead, temperature: e.target.value })}
         >
           <option value="Hot">Hot</option>
           <option value="Warm">Warm</option>
@@ -320,11 +379,9 @@ export default function App() {
         </select>
 
         <input
-          placeholder="مبلغ الصفقة"
-          value={newLead.dealAmount}
-          onChange={(e) =>
-            setNewLead({ ...newLead, dealAmount: e.target.value })
-          }
+          placeholder="مبلغ عرض السعر"
+          value={newLead.offerAmount}
+          onChange={(e) => setNewLead({ ...newLead, offerAmount: e.target.value })}
         />
 
         <button className="primary-btn" onClick={addLead}>
@@ -339,62 +396,69 @@ export default function App() {
 
             {leads
               .filter((item) => item.stage === stage)
-              .map((lead) => (
-                <div
-                  key={lead.id}
-                  className="card clickable-card"
-                  onClick={() => setSelectedLeadId(lead.id)}
-                >
-                  <div className="card-top">
-                    <b>{lead.company}</b>
-                    {lead.closed || lead.stage === 'Won' ? (
-                      <span className="closed-badge">✅ صفقة مغلقة</span>
-                    ) : null}
-                  </div>
+              .map((lead) => {
+                const pendingAmount = getPendingAmount(lead)
 
-                  <div className="mini-line">{lead.phone}</div>
-
-                  <div className="mini-line">
-                    {lead.email || 'لا يوجد إيميل'}
-                  </div>
-
-                  <div className="mini-tags">
-                    <span className={lead.temperature === 'Hot' ? 'danger' : 'warn'}>
-                      {lead.temperature}
-                    </span>
-                    <span className="stage-pill">{lead.stage}</span>
-                  </div>
-
-                  {(lead.closed || lead.stage === 'Won') && Number(lead.dealAmount) > 0 ? (
-                    <div className="deal-box">
-                      المبلغ: {formatMoney(lead.dealAmount)}
+                return (
+                  <div
+                    key={lead.id}
+                    className="card clickable-card"
+                    onClick={() => setSelectedLeadId(lead.id)}
+                  >
+                    <div className="card-top">
+                      <b>{lead.company}</b>
+                      {lead.closed || lead.stage === 'Won' ? (
+                        <span className="closed-badge">✅ مغلقة</span>
+                      ) : null}
                     </div>
-                  ) : null}
 
-                  <div className="actions">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        deleteLead(lead.id)
-                      }}
-                    >
-                      🗑️
-                    </button>
+                    <div className="mini-line">{lead.serviceType || 'بدون خدمة محددة'}</div>
+                    <div className="mini-line">{lead.phone}</div>
 
-                    <select
-                      value={lead.stage}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => updateStage(lead.id, e.target.value)}
-                    >
-                      {stages.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="mini-tags">
+                      <span className={lead.temperature === 'Hot' ? 'danger' : 'warn'}>
+                        {lead.temperature}
+                      </span>
+                      <span className="stage-pill">{lead.stage}</span>
+                    </div>
+
+                    {toNumber(lead.offerAmount) > 0 ? (
+                      <div className="deal-box">
+                        عرض السعر: {formatMoney(lead.offerAmount)}
+                      </div>
+                    ) : null}
+
+                    {pendingAmount > 0 ? (
+                      <div className="pending-box">
+                        معلّق: {formatMoney(pendingAmount)}
+                      </div>
+                    ) : null}
+
+                    <div className="actions">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteLead(lead.id)
+                        }}
+                      >
+                        🗑️
+                      </button>
+
+                      <select
+                        value={lead.stage}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => updateStage(lead.id, e.target.value)}
+                      >
+                        {stages.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
           </div>
         ))}
       </div>
@@ -438,6 +502,28 @@ export default function App() {
               </label>
 
               <label>
+                نوع الخدمة
+                <select
+                  value={selectedLead.serviceType || serviceOptions[0]}
+                  onChange={(e) => patchSelectedLead('serviceType', e.target.value)}
+                >
+                  {serviceOptions.map((service) => (
+                    <option key={service} value={service}>
+                      {service}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="full-width">
+                احتياج العميل
+                <textarea
+                  value={selectedLead.needDescription || ''}
+                  onChange={(e) => patchSelectedLead('needDescription', e.target.value)}
+                />
+              </label>
+
+              <label>
                 الحالة
                 <input
                   value={selectedLead.status || ''}
@@ -471,10 +557,52 @@ export default function App() {
               </label>
 
               <label>
-                مبلغ الصفقة
+                تاريخ عرض السعر
                 <input
-                  value={selectedLead.dealAmount || ''}
-                  onChange={(e) => patchSelectedLead('dealAmount', e.target.value)}
+                  type="date"
+                  value={selectedLead.offerDate || ''}
+                  onChange={(e) => patchSelectedLead('offerDate', e.target.value)}
+                />
+              </label>
+
+              <label>
+                مبلغ عرض السعر
+                <input
+                  value={selectedLead.offerAmount || ''}
+                  onChange={(e) => patchSelectedLead('offerAmount', e.target.value)}
+                />
+              </label>
+
+              <label>
+                المبلغ المدفوع
+                <input
+                  value={selectedLead.paidAmount || ''}
+                  onChange={(e) => patchSelectedLead('paidAmount', e.target.value)}
+                />
+              </label>
+
+              <label>
+                المبلغ المعلّق
+                <input
+                  value={getPendingAmount(selectedLead)}
+                  readOnly
+                />
+              </label>
+
+              <label>
+                رقم العقد
+                <input
+                  value={selectedLead.contractNumber || ''}
+                  onChange={(e) => patchSelectedLead('contractNumber', e.target.value)}
+                />
+              </label>
+
+              <label>
+                تاريخ العقد
+                <input
+                  type="date"
+                  value={selectedLead.contractDate || ''}
+                  onChange={(e) => patchSelectedLead('contractDate', e.target.value)}
                 />
               </label>
 
@@ -485,6 +613,15 @@ export default function App() {
                   onChange={(e) => patchSelectedLead('closed', e.target.checked)}
                 />
                 تم إغلاق الصفقة
+              </label>
+
+              <label className="checkbox-line">
+                <input
+                  type="checkbox"
+                  checked={Boolean(selectedLead.contractSigned)}
+                  onChange={(e) => patchSelectedLead('contractSigned', e.target.checked)}
+                />
+                تم توقيع العقد
               </label>
             </div>
 
@@ -501,6 +638,42 @@ export default function App() {
               <button className="primary-btn" onClick={saveLeadDetails}>
                 💾 حفظ التعديلات
               </button>
+            </div>
+
+            <div className="section-box">
+              <h3>ملخص العرض والعقد</h3>
+
+              <div className="summary-grid">
+                <div className="summary-item">
+                  <span>نوع الخدمة</span>
+                  <strong>{selectedLead.serviceType || '-'}</strong>
+                </div>
+
+                <div className="summary-item">
+                  <span>تاريخ العرض</span>
+                  <strong>{selectedLead.offerDate || '-'}</strong>
+                </div>
+
+                <div className="summary-item">
+                  <span>مبلغ العرض</span>
+                  <strong>{formatMoney(selectedLead.offerAmount)}</strong>
+                </div>
+
+                <div className="summary-item">
+                  <span>المدفوع</span>
+                  <strong>{formatMoney(selectedLead.paidAmount)}</strong>
+                </div>
+
+                <div className="summary-item">
+                  <span>المعلّق</span>
+                  <strong>{formatMoney(getPendingAmount(selectedLead))}</strong>
+                </div>
+
+                <div className="summary-item">
+                  <span>رقم العقد</span>
+                  <strong>{selectedLead.contractNumber || '-'}</strong>
+                </div>
+              </div>
             </div>
 
             <div className="section-box">
@@ -524,9 +697,7 @@ export default function App() {
                   selectedLead.comments.map((comment, index) => (
                     <div className="comment-item" key={index}>
                       <div>{comment.text}</div>
-                      <small>
-                        {new Date(comment.createdAt).toLocaleString()}
-                      </small>
+                      <small>{new Date(comment.createdAt).toLocaleString()}</small>
                     </div>
                   ))
                 )}
