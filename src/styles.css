@@ -1,1496 +1,451 @@
-import './styles.css'
-import { useEffect, useMemo, useState } from 'react'
-import { initializeApp } from 'firebase/app'
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  deleteDoc,
-  doc,
-  updateDoc,
-  onSnapshot,
-  getDocs,
-  query,
-  orderBy
-} from 'firebase/firestore'
-
-const firebaseConfig = {
-  apiKey: 'AIzaSyB53c1aa_CGtDzE0JnUQjbzntYVRBQmx14',
-  authDomain: 'tamakan-crm.firebaseapp.com',
-  projectId: 'tamakan-crm',
-  storageBucket: 'tamakan-crm.firebasestorage.app',
-  messagingSenderId: '180077608637',
-  appId: '1:180077608637:web:bd09d667e20ed830f541d4'
+/* RESET */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-const app = initializeApp(firebaseConfig)
-const db = getFirestore(app)
-
-const STAGES = ['Lead', 'Contacted', 'Meeting', 'Proposal', 'Won']
-const TEMPERATURES = ['Hot', 'Warm']
-const DEAL_STATUSES = ['Open', 'Won', 'Lost']
-const DECISION_STATUSES = ['Pending', 'Approved', 'Rejected', 'No Response']
-const TASK_STATUSES = ['Pending', 'In Progress', 'Done']
-const PAYMENT_STATUSES = ['Pending', 'Paid', 'Partial']
-const DETAIL_TABS = ['overview', 'tasks', 'notes', 'files', 'payments']
-
-const emptyLeadForm = {
-  company: '',
-  phone: '',
-  service: '',
-  temperature: 'Warm',
-  stage: 'Lead',
-  status: 'جديد',
-  dealStatus: 'Open',
-  decisionStatus: 'Pending',
-  quoteAmount: '',
-  expectedCloseDate: '',
-  nextFollowUpDate: ''
+:root {
+  --bg: #0b1a33;
+  --panel: #12264d;
+  --card: #16315f;
+  --card-hover: #1a3b72;
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.78);
+  --border: rgba(255, 255, 255, 0.08);
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --success: #16a34a;
+  --success-hover: #15803d;
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --warning: #f59e0b;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 10px;
+  --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
-const emptyTaskForm = {
-  title: '',
-  dueDate: '',
-  owner: '',
-  status: 'Pending'
+html,
+body,
+#root {
+  min-height: 100%;
 }
 
-const emptyFileForm = {
-  type: 'عرض سعر',
-  url: ''
+body {
+  background: var(--bg);
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  color: var(--text);
+  line-height: 1.5;
 }
 
-const emptyPaymentForm = {
-  title: '',
-  amount: '',
-  date: '',
-  status: 'Pending'
+/* CONTAINER */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
 }
 
-const sampleLead = {
-  company: 'تمكن لتقنية المعلومات',
-  phone: '966553909589',
-  service: 'تطوير موقع إلكتروني',
-  temperature: 'Hot',
-  stage: 'Lead',
-  status: 'جديد',
-  dealStatus: 'Open',
-  decisionStatus: 'Pending',
-  quoteAmount: 0,
-  paidAmount: 0,
-  remainingAmount: 0,
-  expectedCloseDate: '',
-  nextFollowUpDate: '',
-  lastActivityAt: Date.now(),
-  createdAt: Date.now()
+/* TYPOGRAPHY */
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.2;
 }
 
-function formatDate(timestamp) {
-  if (!timestamp) return '-'
-  const date = new Date(timestamp)
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
-  return `${day}/${month}/${year}`
+p,
+span,
+label,
+div,
+strong,
+b {
+  word-break: break-word;
 }
 
-function formatMoney(value) {
-  return Number(value || 0).toLocaleString('en-US')
+/* INPUTS */
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--panel);
+  color: var(--text);
+  outline: none;
+  transition: 0.2s ease;
+  font: inherit;
 }
 
-function todayString() {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, '0')
-  const d = String(now.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 
-function isTaskToday(task) {
-  return task?.dueDate === todayString() && task?.status !== 'Done'
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
-function isTaskOverdue(task) {
-  return !!task?.dueDate && task?.dueDate < todayString() && task?.status !== 'Done'
+/* BUTTONS */
+button {
+  font: inherit;
+  transition: 0.2s ease;
+  border: none;
+  cursor: pointer;
 }
 
-function taskBorderColor(task) {
-  if (task.status === 'Done') return '#22c55e'
-  if (isTaskOverdue(task)) return '#ef4444'
-  if (isTaskToday(task)) return '#f59e0b'
-  return 'rgba(255,255,255,0.08)'
+button:hover {
+  opacity: 0.96;
+  transform: translateY(-1px);
 }
 
-function dealLabel(status) {
-  if (status === 'Won') return 'مغلقة - ربح'
-  if (status === 'Lost') return 'مغلقة - خسارة'
-  return 'مفتوحة'
+button:active {
+  transform: scale(0.98);
 }
 
-function decisionLabel(status) {
-  if (status === 'Approved') return 'موافق'
-  if (status === 'Rejected') return 'مرفوض'
-  if (status === 'No Response') return 'لا يوجد رد'
-  return 'بانتظار القرار'
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
-function stageBadgeColor(stage) {
-  if (stage === 'Won') return '#16a34a'
-  if (stage === 'Proposal') return '#2563eb'
-  if (stage === 'Meeting') return '#7c3aed'
-  if (stage === 'Contacted') return '#ca8a04'
-  return '#475569'
+/* LINKS */
+a {
+  color: #22c55e;
+  text-decoration: none;
+  transition: 0.2s ease;
 }
 
-function tempAccent(temp) {
-  return temp === 'Hot' ? '#ef4444' : '#f59e0b'
+a:hover {
+  text-decoration: underline;
 }
 
-function buildWhatsAppMessage(lead) {
-  const company = lead.company || 'العميل'
-  const service = lead.service || 'الخدمة المطلوبة'
-  const quote = Number(lead.quoteAmount || 0)
-  const paid = Number(lead.paidAmount || 0)
-  const remaining = Number(lead.remainingAmount || 0)
+/* GENERIC UTILITY CLASSES */
+.primary-btn {
+  background: var(--primary);
+  color: white;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+}
 
-  let text = `السلام عليكم ${company}\n\n`
+.primary-btn:hover {
+  background: var(--primary-hover);
+}
 
-  if (lead.dealStatus === 'Won') {
-    text += `نشكركم على ثقتكم.\n`
-    text += `الخدمة: ${service}\n`
-    text += `قيمة عرض السعر: ${formatMoney(quote)} ريال\n`
-    text += `المدفوع: ${formatMoney(paid)} ريال\n`
-    text += `المتبقي: ${formatMoney(remaining)} ريال\n\n`
-    text += `يسعدنا متابعة بقية الإجراءات معكم.`
-    return encodeURIComponent(text)
+.secondary-btn {
+  background: var(--card);
+  color: white;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+}
+
+.danger-btn {
+  background: var(--danger);
+  color: white;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+}
+
+.danger-btn:hover {
+  background: var(--danger-hover);
+}
+
+.small-btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+/* STATS GRID */
+.stats-grid,
+.stats-grid-extended {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: var(--panel);
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: 0.2s ease;
+  box-shadow: var(--shadow-soft);
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  background: var(--card);
+}
+
+.stat-card span {
+  display: block;
+  opacity: 0.85;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.stat-card strong {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+/* FORM BOX */
+.form-box {
+  background: var(--panel);
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: grid;
+  gap: 10px;
+  box-shadow: var(--shadow-soft);
+}
+
+/* PANELS */
+.detail-panel {
+  background: var(--panel);
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-soft);
+}
+
+.panel,
+.info-panel,
+.section-panel {
+  background: var(--panel);
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-soft);
+}
+
+/* TABS */
+.tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.tabs button {
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: white;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+}
+
+.tabs button.active {
+  background: var(--primary);
+}
+
+/* PIPELINE */
+.pipeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.pipe-col {
+  background: var(--panel);
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-soft);
+}
+
+.pipe-col h3 {
+  margin-bottom: 10px;
+  font-size: 18px;
+  opacity: 0.95;
+}
+
+/* LEAD CARD */
+.card {
+  background: var(--card);
+  padding: 14px;
+  border-radius: 14px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: 0.2s ease;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  background: var(--card-hover);
+}
+
+.card b,
+.card strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* BADGES */
+.badge {
+  background: var(--primary);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: white;
+  display: inline-block;
+}
+
+/* ACTIONS */
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.actions button {
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+
+/* LIST ITEMS */
+.list-item {
+  background: var(--card);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* TASK COLORS */
+.task-overdue {
+  border: 1px solid var(--danger) !important;
+}
+
+.task-today {
+  border: 1px solid var(--warning) !important;
+}
+
+.task-done {
+  border: 1px solid var(--success) !important;
+}
+
+/* WHATSAPP BUTTON */
+.wa-btn {
+  background: var(--success);
+  color: white;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.wa-btn:hover {
+  background: var(--success-hover);
+  text-decoration: none;
+}
+
+/* TABLE-LIKE BLOCKS */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.info-box {
+  background: var(--card);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* EMPTY STATES */
+.empty-state {
+  background: var(--card);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  opacity: 0.8;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+}
+
+/* MODAL-LIKE SECTIONS */
+.section-title {
+  margin-bottom: 14px;
+}
+
+.meta-text {
+  margin-top: 8px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+/* SCROLL */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e3a8a;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* RESPONSIVE */
+@media (max-width: 992px) {
+  .stats-grid,
+  .stats-grid-extended {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 
-  if (lead.dealStatus === 'Lost') {
-    text += `نشكر لكم وقتكم.\n`
-    text += `إذا رغبتم بإعادة فتح النقاش بخصوص ${service} فنحن جاهزون لخدمتكم.`
-    return encodeURIComponent(text)
+  .pipeline {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 14px;
   }
 
-  if (lead.stage === 'Proposal' || lead.decisionStatus === 'Pending') {
-    text += `نود متابعتكم بخصوص عرض السعر الخاص بخدمة ${service}.\n`
-    text += `قيمة العرض: ${formatMoney(quote)} ريال.\n`
-    text += `حالة القرار الحالية: ${decisionLabel(lead.decisionStatus)}.\n\n`
-    text += `في حال رغبتكم بإكمال الإجراءات أو لديكم أي استفسار، نحن جاهزون لخدمتكم.`
-    return encodeURIComponent(text)
+  .pipeline {
+    grid-template-columns: 1fr;
   }
 
-  if (lead.decisionStatus === 'No Response') {
-    text += `نود التذكير بخصوص عرض السعر لخدمة ${service}.\n`
-    text += `قيمة العرض: ${formatMoney(quote)} ريال.\n\n`
-    text += `يسعدنا استكمال الخطوات معكم عند جاهزيتكم.`
-    return encodeURIComponent(text)
+  .pipe-col {
+    padding: 12px;
   }
 
-  text += `هذه متابعة بخصوص طلبكم لخدمة ${service}.\n`
-  text += `المرحلة الحالية: ${lead.stage}\n`
-  text += `حالة الصفقة: ${dealLabel(lead.dealStatus)}\n`
-  text += `عرض السعر: ${formatMoney(quote)} ريال\n`
-  text += `المدفوع: ${formatMoney(paid)} ريال\n`
-  text += `المتبقي: ${formatMoney(remaining)} ريال\n\n`
-  text += `يسعدنا خدمتكم ومتابعة الطلب معكم.`
-  return encodeURIComponent(text)
-}
-
-export default function App() {
-  const [leads, setLeads] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [editingId, setEditingId] = useState(null)
-
-  const [searchTerm, setSearchTerm] = useState('')
-  const [stageFilter, setStageFilter] = useState('All')
-  const [tempFilter, setTempFilter] = useState('All')
-  const [dealFilter, setDealFilter] = useState('All')
-
-  const [newLead, setNewLead] = useState(emptyLeadForm)
-  const [selectedClient, setSelectedClient] = useState(null)
-  const [activeTab, setActiveTab] = useState('overview')
-
-  const [clientTasks, setClientTasks] = useState([])
-  const [taskForm, setTaskForm] = useState(emptyTaskForm)
-
-  const [clientNotes, setClientNotes] = useState([])
-  const [noteText, setNoteText] = useState('')
-
-  const [clientFiles, setClientFiles] = useState([])
-  const [fileForm, setFileForm] = useState(emptyFileForm)
-
-  const [clientPayments, setClientPayments] = useState([])
-  const [paymentForm, setPaymentForm] = useState(emptyPaymentForm)
-
-  useEffect(() => {
-    async function seedIfNeeded() {
-      const leadsRef = collection(db, 'leads')
-      const snapshot = await getDocs(leadsRef)
-      if (!snapshot.empty) return
-
-      const oldLocal = localStorage.getItem('leads')
-      if (oldLocal) {
-        try {
-          const parsed = JSON.parse(oldLocal)
-          if (Array.isArray(parsed) && parsed.length) {
-            for (const item of parsed) {
-              const quoteAmount = Number(item.quoteAmount || 0)
-              const paidAmount = Number(item.paidAmount || 0)
-              await addDoc(leadsRef, {
-                company: item.company || '',
-                phone: item.phone || '',
-                service: item.service || '',
-                temperature: item.temperature || 'Warm',
-                stage: item.stage || 'Lead',
-                status: item.status || 'جديد',
-                dealStatus: item.dealStatus || 'Open',
-                decisionStatus: item.decisionStatus || 'Pending',
-                quoteAmount,
-                paidAmount,
-                remainingAmount: Math.max(quoteAmount - paidAmount, 0),
-                expectedCloseDate: item.expectedCloseDate || '',
-                nextFollowUpDate: item.nextFollowUpDate || '',
-                lastActivityAt: item.lastActivityAt || Date.now(),
-                createdAt: item.createdAt || Date.now()
-              })
-            }
-            return
-          }
-        } catch (error) {
-          console.error('خطأ في قراءة البيانات القديمة:', error)
-        }
-      }
-
-      await addDoc(leadsRef, sampleLead)
-    }
-
-    let unsubscribeRef
-
-    async function init() {
-      await seedIfNeeded()
-
-      const unsubscribe = onSnapshot(collection(db, 'leads'), (snapshot) => {
-        const data = snapshot.docs.map((item) => ({
-          id: item.id,
-          ...item.data()
-        }))
-        setLeads(data)
-        setLoading(false)
-
-        if (selectedClient) {
-          const fresh = data.find((x) => x.id === selectedClient.id)
-          if (fresh) setSelectedClient(fresh)
-        }
-      })
-
-      unsubscribeRef = unsubscribe
-    }
-
-    init()
-
-    return () => {
-      if (unsubscribeRef) unsubscribeRef()
-    }
-  }, [selectedClient])
-
-  useEffect(() => {
-    if (!selectedClient) {
-      setClientTasks([])
-      setClientNotes([])
-      setClientFiles([])
-      setClientPayments([])
-      return
-    }
-
-    const unsubscribers = []
-
-    const tasksQ = query(
-      collection(db, 'leads', selectedClient.id, 'tasks'),
-      orderBy('createdAt', 'desc')
-    )
-    unsubscribers.push(
-      onSnapshot(tasksQ, (snapshot) => {
-        setClientTasks(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
-      })
-    )
-
-    const notesQ = query(
-      collection(db, 'leads', selectedClient.id, 'notes'),
-      orderBy('createdAt', 'desc')
-    )
-    unsubscribers.push(
-      onSnapshot(notesQ, (snapshot) => {
-        setClientNotes(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
-      })
-    )
-
-    const filesQ = query(
-      collection(db, 'leads', selectedClient.id, 'files'),
-      orderBy('createdAt', 'desc')
-    )
-    unsubscribers.push(
-      onSnapshot(filesQ, (snapshot) => {
-        setClientFiles(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
-      })
-    )
-
-    const paymentsQ = query(
-      collection(db, 'leads', selectedClient.id, 'payments'),
-      orderBy('createdAt', 'desc')
-    )
-    unsubscribers.push(
-      onSnapshot(paymentsQ, (snapshot) => {
-        setClientPayments(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
-      })
-    )
-
-    return () => {
-      unsubscribers.forEach((fn) => fn())
-    }
-  }, [selectedClient])
-
-  async function touchClient(clientId, extra = {}) {
-    await updateDoc(doc(db, 'leads', clientId), {
-      lastActivityAt: Date.now(),
-      ...extra
-    })
+  .card {
+    padding: 12px;
   }
 
-  async function recalcPayments(clientId, quoteOverride = null) {
-    const snapshot = await getDocs(collection(db, 'leads', clientId, 'payments'))
-    let paid = 0
+  .actions {
+    flex-direction: row;
+  }
+}
 
-    snapshot.forEach((d) => {
-      const payment = d.data()
-      if (payment.status === 'Paid' || payment.status === 'Partial') {
-        paid += Number(payment.amount || 0)
-      }
-    })
-
-    const current = leads.find((x) => x.id === clientId)
-    const quoteAmount = quoteOverride !== null
-      ? Number(quoteOverride || 0)
-      : Number(current?.quoteAmount || 0)
-
-    await updateDoc(doc(db, 'leads', clientId), {
-      paidAmount: paid,
-      remainingAmount: Math.max(quoteAmount - paid, 0),
-      lastActivityAt: Date.now()
-    })
+@media (max-width: 480px) {
+  .stats-grid,
+  .stats-grid-extended {
+    grid-template-columns: 1fr 1fr;
   }
 
-  async function addLead() {
-    if (!newLead.company || !newLead.phone) {
-      alert('أكمل اسم الشركة ورقم الجوال')
-      return
-    }
-
-    const quoteAmount = Number(newLead.quoteAmount || 0)
-
-    await addDoc(collection(db, 'leads'), {
-      company: newLead.company,
-      phone: newLead.phone,
-      service: newLead.service,
-      temperature: newLead.temperature,
-      stage: newLead.stage,
-      status: 'جديد',
-      dealStatus: newLead.dealStatus,
-      decisionStatus: newLead.decisionStatus,
-      quoteAmount,
-      paidAmount: 0,
-      remainingAmount: quoteAmount,
-      expectedCloseDate: newLead.expectedCloseDate || '',
-      nextFollowUpDate: newLead.nextFollowUpDate || '',
-      lastActivityAt: Date.now(),
-      createdAt: Date.now()
-    })
-
-    setNewLead(emptyLeadForm)
+  .form-box {
+    padding: 14px;
   }
 
-  async function updateLead(lead) {
-    const { id, ...payload } = lead
-    const quoteAmount = Number(payload.quoteAmount || 0)
-
-    await updateDoc(doc(db, 'leads', id), {
-      ...payload,
-      quoteAmount,
-      remainingAmount: Math.max(
-        quoteAmount - Number(payload.paidAmount || 0),
-        0
-      ),
-      lastActivityAt: Date.now()
-    })
-
-    await recalcPayments(id, quoteAmount)
-    setEditingId(null)
+  .detail-panel {
+    padding: 14px;
   }
-
-  async function deleteLead(id) {
-    await deleteDoc(doc(db, 'leads', id))
-    if (selectedClient?.id === id) {
-      setSelectedClient(null)
-      setActiveTab('overview')
-    }
-  }
-
-  function patchLeadLocal(id, field, value) {
-    setLeads((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    )
-  }
-
-  async function saveQuickField(id, field, value) {
-    await updateDoc(doc(db, 'leads', id), {
-      [field]: value,
-      lastActivityAt: Date.now()
-    })
-  }
-
-  async function addTask() {
-    if (!selectedClient) return
-    if (!taskForm.title || !taskForm.dueDate || !taskForm.owner) {
-      alert('أكمل بيانات المهمة')
-      return
-    }
-
-    await addDoc(collection(db, 'leads', selectedClient.id, 'tasks'), {
-      title: taskForm.title,
-      dueDate: taskForm.dueDate,
-      owner: taskForm.owner,
-      status: taskForm.status,
-      createdAt: Date.now()
-    })
-
-    await touchClient(selectedClient.id)
-    setTaskForm(emptyTaskForm)
-  }
-
-  async function updateTaskStatus(taskId, status) {
-    if (!selectedClient) return
-    await updateDoc(doc(db, 'leads', selectedClient.id, 'tasks', taskId), { status })
-    await touchClient(selectedClient.id)
-  }
-
-  async function deleteTask(taskId) {
-    if (!selectedClient) return
-    await deleteDoc(doc(db, 'leads', selectedClient.id, 'tasks', taskId))
-    await touchClient(selectedClient.id)
-  }
-
-  async function addNote() {
-    if (!selectedClient || !noteText.trim()) {
-      alert('اكتب الملاحظة')
-      return
-    }
-
-    await addDoc(collection(db, 'leads', selectedClient.id, 'notes'), {
-      text: noteText.trim(),
-      createdAt: Date.now()
-    })
-
-    await touchClient(selectedClient.id)
-    setNoteText('')
-  }
-
-  async function deleteNote(noteId) {
-    if (!selectedClient) return
-    await deleteDoc(doc(db, 'leads', selectedClient.id, 'notes', noteId))
-    await touchClient(selectedClient.id)
-  }
-
-  async function addFile() {
-    if (!selectedClient || !fileForm.url.trim()) {
-      alert('أدخل رابط الملف')
-      return
-    }
-
-    await addDoc(collection(db, 'leads', selectedClient.id, 'files'), {
-      type: fileForm.type,
-      url: fileForm.url.trim(),
-      createdAt: Date.now()
-    })
-
-    await touchClient(selectedClient.id)
-    setFileForm(emptyFileForm)
-  }
-
-  async function deleteFile(fileId) {
-    if (!selectedClient) return
-    await deleteDoc(doc(db, 'leads', selectedClient.id, 'files', fileId))
-    await touchClient(selectedClient.id)
-  }
-
-  async function addPayment() {
-    if (!selectedClient) return
-    if (!paymentForm.title || !paymentForm.amount || !paymentForm.date) {
-      alert('أكمل بيانات الدفعة')
-      return
-    }
-
-    await addDoc(collection(db, 'leads', selectedClient.id, 'payments'), {
-      title: paymentForm.title,
-      amount: Number(paymentForm.amount || 0),
-      date: paymentForm.date,
-      status: paymentForm.status,
-      createdAt: Date.now()
-    })
-
-    await touchClient(selectedClient.id)
-    await recalcPayments(selectedClient.id)
-    setPaymentForm(emptyPaymentForm)
-  }
-
-  async function updatePaymentStatus(paymentId, status) {
-    if (!selectedClient) return
-    await updateDoc(doc(db, 'leads', selectedClient.id, 'payments', paymentId), { status })
-    await touchClient(selectedClient.id)
-    await recalcPayments(selectedClient.id)
-  }
-
-  async function deletePayment(paymentId) {
-    if (!selectedClient) return
-    await deleteDoc(doc(db, 'leads', selectedClient.id, 'payments', paymentId))
-    await touchClient(selectedClient.id)
-    await recalcPayments(selectedClient.id)
-  }
-
-  function exportCsv() {
-    const headers = [
-      'اسم الشركة',
-      'الجوال',
-      'الخدمة',
-      'المرحلة',
-      'حالة الصفقة',
-      'حالة القرار',
-      'عرض السعر',
-      'المدفوع',
-      'المتبقي',
-      'تاريخ التسجيل',
-      'المتابعة القادمة'
-    ]
-
-    const rows = filteredLeads.map((lead) => [
-      lead.company || '',
-      lead.phone || '',
-      lead.service || '',
-      lead.stage || '',
-      lead.dealStatus || '',
-      lead.decisionStatus || '',
-      Number(lead.quoteAmount || 0),
-      Number(lead.paidAmount || 0),
-      Number(lead.remainingAmount || 0),
-      formatDate(lead.createdAt),
-      lead.nextFollowUpDate || ''
-    ])
-
-    const csv = [headers, ...rows]
-      .map((row) =>
-        row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(',')
-      )
-      .join('\n')
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', 'tamakan-crm-report.csv')
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
-
-  const filteredLeads = useMemo(() => {
-    return leads.filter((lead) => {
-      const q = searchTerm.trim().toLowerCase()
-
-      const matchesSearch =
-        !q ||
-        (lead.company || '').toLowerCase().includes(q) ||
-        (lead.phone || '').toLowerCase().includes(q) ||
-        (lead.service || '').toLowerCase().includes(q) ||
-        (lead.stage || '').toLowerCase().includes(q) ||
-        (lead.status || '').toLowerCase().includes(q)
-
-      const matchesStage = stageFilter === 'All' || lead.stage === stageFilter
-      const matchesTemp = tempFilter === 'All' || lead.temperature === tempFilter
-      const matchesDeal = dealFilter === 'All' || lead.dealStatus === dealFilter
-
-      return matchesSearch && matchesStage && matchesTemp && matchesDeal
-    })
-  }, [leads, searchTerm, stageFilter, tempFilter, dealFilter])
-
-  const total = leads.length
-  const filteredTotal = filteredLeads.length
-  const hotCount = leads.filter((x) => x.temperature === 'Hot').length
-  const warmCount = leads.filter((x) => x.temperature === 'Warm').length
-  const contactedCount = leads.filter((x) => x.stage === 'Contacted').length
-  const meetingCount = leads.filter((x) => x.stage === 'Meeting').length
-  const proposalCount = leads.filter((x) => x.stage === 'Proposal').length
-  const wonCount = leads.filter((x) => x.dealStatus === 'Won' || x.stage === 'Won').length
-  const lostCount = leads.filter((x) => x.dealStatus === 'Lost').length
-  const totalDealValue = leads.reduce((sum, x) => sum + Number(x.quoteAmount || 0), 0)
-  const totalWonValue = leads
-    .filter((x) => x.dealStatus === 'Won')
-    .reduce((sum, x) => sum + Number(x.quoteAmount || 0), 0)
-
-  const todayTasksCount = clientTasks.filter(isTaskToday).length
-  const overdueTasksCount = clientTasks.filter(isTaskOverdue).length
-  const doneTasksCount = clientTasks.filter((t) => t.status === 'Done').length
-
-  if (loading) {
-    return (
-      <div className="container" dir="rtl">
-        <h1>🚀 Tamakan CRM</h1>
-        <p>جاري تحميل البيانات...</p>
-      </div>
-    )
-  }
-
-  return (
-    <div
-      className="container"
-      dir="rtl"
-      style={{
-        minHeight: '100vh',
-        background: '#0b1a33',
-        color: 'white',
-        padding: '20px'
-      }}
-    >
-      <h1 style={{ marginBottom: '20px' }}>🚀 Tamakan CRM</h1>
-
-      <div style={{ display: 'grid', gap: '12px', marginBottom: '20px' }}>
-        <input
-          placeholder="بحث باسم الشركة أو الجوال أو الخدمة أو المرحلة"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={inputStyle}
-        />
-
-        <div style={grid4Style}>
-          <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} style={inputStyle}>
-            <option value="All">كل المراحل</option>
-            {STAGES.map((stage) => (
-              <option key={stage} value={stage}>{stage}</option>
-            ))}
-          </select>
-
-          <select value={tempFilter} onChange={(e) => setTempFilter(e.target.value)} style={inputStyle}>
-            <option value="All">كل الدرجات</option>
-            {TEMPERATURES.map((temp) => (
-              <option key={temp} value={temp}>{temp}</option>
-            ))}
-          </select>
-
-          <select value={dealFilter} onChange={(e) => setDealFilter(e.target.value)} style={inputStyle}>
-            <option value="All">كل حالات الصفقة</option>
-            {DEAL_STATUSES.map((status) => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
-
-          <button onClick={exportCsv} style={primaryButtonStyle}>⬇️ تصدير CSV</button>
-        </div>
-      </div>
-
-      <div style={statsGridStyle}>
-        <StatCard title="📊 إجمالي العملاء" value={total} />
-        <StatCard title="🔎 نتائج البحث" value={filteredTotal} />
-        <StatCard title="🔥 Hot" value={hotCount} />
-        <StatCard title="🟡 Warm" value={warmCount} />
-        <StatCard title="☎️ Contacted" value={contactedCount} />
-        <StatCard title="🤝 Meeting" value={meetingCount} />
-        <StatCard title="📄 Proposal" value={proposalCount} />
-        <StatCard title="💰 Won" value={wonCount} />
-        <StatCard title="❌ Lost" value={lostCount} />
-        <StatCard title="💵 قيمة الصفقات" value={formatMoney(totalDealValue)} />
-        <StatCard title="✅ أرباح محققة" value={formatMoney(totalWonValue)} />
-        <StatCard title="📅 مهام اليوم" value={todayTasksCount} />
-        <StatCard title="🚨 مهام متأخرة" value={overdueTasksCount} />
-        <StatCard title="✔️ مهام مكتملة" value={doneTasksCount} />
-      </div>
-
-      <div style={panelStyle}>
-        <h2 style={sectionTitleStyle}>إضافة عميل</h2>
-
-        <div style={grid4Style}>
-          <input
-            placeholder="اسم الشركة"
-            value={newLead.company}
-            onChange={(e) => setNewLead({ ...newLead, company: e.target.value })}
-            style={inputStyle}
-          />
-          <input
-            placeholder="رقم الجوال"
-            value={newLead.phone}
-            onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })}
-            style={inputStyle}
-          />
-          <input
-            placeholder="الخدمة المطلوبة"
-            value={newLead.service}
-            onChange={(e) => setNewLead({ ...newLead, service: e.target.value })}
-            style={inputStyle}
-          />
-          <input
-            placeholder="عرض السعر"
-            type="number"
-            value={newLead.quoteAmount}
-            onChange={(e) => setNewLead({ ...newLead, quoteAmount: e.target.value })}
-            style={inputStyle}
-          />
-          <input
-            type="date"
-            value={newLead.nextFollowUpDate}
-            onChange={(e) => setNewLead({ ...newLead, nextFollowUpDate: e.target.value })}
-            style={inputStyle}
-          />
-          <input
-            type="date"
-            value={newLead.expectedCloseDate}
-            onChange={(e) => setNewLead({ ...newLead, expectedCloseDate: e.target.value })}
-            style={inputStyle}
-          />
-          <select
-            value={newLead.temperature}
-            onChange={(e) => setNewLead({ ...newLead, temperature: e.target.value })}
-            style={inputStyle}
-          >
-            {TEMPERATURES.map((temp) => (
-              <option key={temp} value={temp}>{temp}</option>
-            ))}
-          </select>
-          <select
-            value={newLead.stage}
-            onChange={(e) => setNewLead({ ...newLead, stage: e.target.value })}
-            style={inputStyle}
-          >
-            {STAGES.map((stage) => (
-              <option key={stage} value={stage}>{stage}</option>
-            ))}
-          </select>
-          <select
-            value={newLead.dealStatus}
-            onChange={(e) => setNewLead({ ...newLead, dealStatus: e.target.value })}
-            style={inputStyle}
-          >
-            {DEAL_STATUSES.map((status) => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
-          <select
-            value={newLead.decisionStatus}
-            onChange={(e) => setNewLead({ ...newLead, decisionStatus: e.target.value })}
-            style={inputStyle}
-          >
-            {DECISION_STATUSES.map((status) => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ marginTop: '12px' }}>
-          <button onClick={addLead} style={primaryButtonStyle}>➕ إضافة العميل</button>
-        </div>
-      </div>
-
-      {selectedClient && (
-        <div style={detailPanelStyle}>
-          <div style={detailHeaderStyle}>
-            <div>
-              <h2 style={{ margin: 0 }}>{selectedClient.company}</h2>
-              <div style={{ marginTop: '6px', opacity: 0.85 }}>
-                {selectedClient.service || '-'}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <a
-                href={`https://wa.me/${selectedClient.phone}?text=${buildWhatsAppMessage(selectedClient)}`}
-                target="_blank"
-                rel="noreferrer"
-                style={waButtonStyle}
-              >
-                واتساب ذكي
-              </a>
-
-              <button
-                onClick={() => setSelectedClient(null)}
-                style={dangerButtonStyle}
-              >
-                إغلاق
-              </button>
-            </div>
-          </div>
-
-          <div style={tabsStyle}>
-            {DETAIL_TABS.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                style={activeTab === tab ? activeTabStyle : tabStyle}
-              >
-                {tab === 'overview' && 'نظرة عامة'}
-                {tab === 'tasks' && 'المهام'}
-                {tab === 'notes' && 'الملاحظات'}
-                {tab === 'files' && 'الملفات'}
-                {tab === 'payments' && 'الدفعات'}
-              </button>
-            ))}
-          </div>
-
-          {activeTab === 'overview' && (
-            <div style={grid2Style}>
-              <InfoBox label="رقم الجوال" value={selectedClient.phone} />
-              <InfoBox label="المرحلة" value={selectedClient.stage} />
-              <InfoBox label="درجة العميل" value={selectedClient.temperature} />
-              <InfoBox label="حالة الصفقة" value={dealLabel(selectedClient.dealStatus)} />
-              <InfoBox label="حالة القرار" value={decisionLabel(selectedClient.decisionStatus)} />
-              <InfoBox label="تاريخ التسجيل" value={formatDate(selectedClient.createdAt)} />
-              <InfoBox label="آخر نشاط" value={formatDate(selectedClient.lastActivityAt)} />
-              <InfoBox label="المتابعة القادمة" value={selectedClient.nextFollowUpDate || '-'} />
-              <InfoBox label="الإغلاق المتوقع" value={selectedClient.expectedCloseDate || '-'} />
-              <InfoBox label="عرض السعر" value={`${formatMoney(selectedClient.quoteAmount)} ريال`} />
-              <InfoBox label="المدفوع" value={`${formatMoney(selectedClient.paidAmount)} ريال`} />
-              <InfoBox label="المتبقي" value={`${formatMoney(selectedClient.remainingAmount)} ريال`} />
-              <InfoBox label="عدد المهام" value={clientTasks.length} />
-              <InfoBox label="عدد الملاحظات" value={clientNotes.length} />
-              <InfoBox label="عدد الملفات" value={clientFiles.length} />
-            </div>
-          )}
-
-          {activeTab === 'tasks' && (
-            <div>
-              <div style={grid4Style}>
-                <input
-                  placeholder="اسم المهمة"
-                  value={taskForm.title}
-                  onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
-                  style={inputStyle}
-                />
-                <input
-                  type="date"
-                  value={taskForm.dueDate}
-                  onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
-                  style={inputStyle}
-                />
-                <input
-                  placeholder="المسؤول"
-                  value={taskForm.owner}
-                  onChange={(e) => setTaskForm({ ...taskForm, owner: e.target.value })}
-                  style={inputStyle}
-                />
-                <select
-                  value={taskForm.status}
-                  onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value })}
-                  style={inputStyle}
-                >
-                  {TASK_STATUSES.map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ marginTop: '12px' }}>
-                <button onClick={addTask} style={primaryButtonStyle}>➕ إضافة مهمة</button>
-              </div>
-
-              <div style={listStyle}>
-                {clientTasks.length === 0 ? (
-                  <EmptyState text="لا توجد مهام لهذا العميل" />
-                ) : (
-                  clientTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      style={{
-                        ...itemCardStyle,
-                        border: `1px solid ${taskBorderColor(task)}`
-                      }}
-                    >
-                      <div><strong>المهمة:</strong> {task.title}</div>
-                      <div><strong>التاريخ:</strong> {task.dueDate}</div>
-                      <div><strong>المسؤول:</strong> {task.owner}</div>
-                      <div><strong>الحالة:</strong> {task.status}</div>
-
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-                        <select
-                          value={task.status}
-                          onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                          style={smallSelectStyle}
-                        >
-                          {TASK_STATUSES.map((status) => (
-                            <option key={status} value={status}>{status}</option>
-                          ))}
-                        </select>
-
-                        <button onClick={() => deleteTask(task.id)} style={smallDangerStyle}>
-                          🗑️ حذف
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'notes' && (
-            <div>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <input
-                  placeholder="اكتب ملاحظة"
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  style={{ ...inputStyle, flex: 1 }}
-                />
-                <button onClick={addNote} style={primaryButtonStyle}>➕ إضافة ملاحظة</button>
-              </div>
-
-              <div style={listStyle}>
-                {clientNotes.length === 0 ? (
-                  <EmptyState text="لا توجد ملاحظات" />
-                ) : (
-                  clientNotes.map((note) => (
-                    <div key={note.id} style={itemCardStyle}>
-                      <div>{note.text}</div>
-                      <div style={metaTextStyle}>{formatDate(note.createdAt)}</div>
-                      <button onClick={() => deleteNote(note.id)} style={smallDangerStyle}>
-                        🗑️ حذف
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'files' && (
-            <div>
-              <div style={grid4Style}>
-                <select
-                  value={fileForm.type}
-                  onChange={(e) => setFileForm({ ...fileForm, type: e.target.value })}
-                  style={inputStyle}
-                >
-                  <option value="عرض سعر">عرض سعر</option>
-                  <option value="عقد">عقد</option>
-                  <option value="ملف آخر">ملف آخر</option>
-                </select>
-
-                <input
-                  placeholder="رابط الملف"
-                  value={fileForm.url}
-                  onChange={(e) => setFileForm({ ...fileForm, url: e.target.value })}
-                  style={inputStyle}
-                />
-
-                <button onClick={addFile} style={primaryButtonStyle}>➕ إضافة ملف</button>
-              </div>
-
-              <div style={listStyle}>
-                {clientFiles.length === 0 ? (
-                  <EmptyState text="لا توجد ملفات" />
-                ) : (
-                  clientFiles.map((file) => (
-                    <div key={file.id} style={itemCardStyle}>
-                      <div><strong>النوع:</strong> {file.type}</div>
-                      <div style={{ marginTop: '8px' }}>
-                        <a href={file.url} target="_blank" rel="noreferrer">
-                          فتح الملف
-                        </a>
-                      </div>
-                      <div style={metaTextStyle}>{formatDate(file.createdAt)}</div>
-                      <button onClick={() => deleteFile(file.id)} style={smallDangerStyle}>
-                        🗑️ حذف
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'payments' && (
-            <div>
-              <div style={grid4Style}>
-                <input
-                  placeholder="اسم الدفعة"
-                  value={paymentForm.title}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, title: e.target.value })}
-                  style={inputStyle}
-                />
-                <input
-                  placeholder="المبلغ"
-                  type="number"
-                  value={paymentForm.amount}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                  style={inputStyle}
-                />
-                <input
-                  type="date"
-                  value={paymentForm.date}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
-                  style={inputStyle}
-                />
-                <select
-                  value={paymentForm.status}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, status: e.target.value })}
-                  style={inputStyle}
-                >
-                  {PAYMENT_STATUSES.map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ marginTop: '12px' }}>
-                <button onClick={addPayment} style={primaryButtonStyle}>➕ إضافة دفعة</button>
-              </div>
-
-              <div style={listStyle}>
-                {clientPayments.length === 0 ? (
-                  <EmptyState text="لا توجد دفعات" />
-                ) : (
-                  clientPayments.map((payment) => (
-                    <div key={payment.id} style={itemCardStyle}>
-                      <div><strong>اسم الدفعة:</strong> {payment.title}</div>
-                      <div><strong>المبلغ:</strong> {formatMoney(payment.amount)} ريال</div>
-                      <div><strong>التاريخ:</strong> {payment.date}</div>
-                      <div><strong>الحالة:</strong> {payment.status}</div>
-
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-                        <select
-                          value={payment.status}
-                          onChange={(e) => updatePaymentStatus(payment.id, e.target.value)}
-                          style={smallSelectStyle}
-                        >
-                          {PAYMENT_STATUSES.map((status) => (
-                            <option key={status} value={status}>{status}</option>
-                          ))}
-                        </select>
-
-                        <button onClick={() => deletePayment(payment.id)} style={smallDangerStyle}>
-                          🗑️ حذف
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div style={pipelineStyle}>
-        {STAGES.map((stage) => (
-          <div key={stage} style={columnStyle}>
-            <h3 style={{ marginTop: 0 }}>{stage}</h3>
-
-            {filteredLeads
-              .filter((lead) => lead.stage === stage)
-              .map((lead) => (
-                <div
-                  key={lead.id}
-                  style={{
-                    ...leadCardStyle,
-                    borderRight: `4px solid ${tempAccent(lead.temperature)}`
-                  }}
-                  onClick={() => {
-                    setSelectedClient(lead)
-                    setActiveTab('overview')
-                  }}
-                >
-                  {editingId === lead.id ? (
-                    <>
-                      <input
-                        value={lead.company}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => patchLeadLocal(lead.id, 'company', e.target.value)}
-                        style={inputStyle}
-                      />
-                      <input
-                        value={lead.phone}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => patchLeadLocal(lead.id, 'phone', e.target.value)}
-                        style={inputStyle}
-                      />
-                      <input
-                        value={lead.service || ''}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => patchLeadLocal(lead.id, 'service', e.target.value)}
-                        placeholder="الخدمة"
-                        style={inputStyle}
-                      />
-                      <input
-                        type="number"
-                        value={lead.quoteAmount || 0}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => patchLeadLocal(lead.id, 'quoteAmount', e.target.value)}
-                        placeholder="عرض السعر"
-                        style={inputStyle}
-                      />
-                      <select
-                        value={lead.dealStatus || 'Open'}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => patchLeadLocal(lead.id, 'dealStatus', e.target.value)}
-                        style={inputStyle}
-                      >
-                        {DEAL_STATUSES.map((status) => (
-                          <option key={status} value={status}>{status}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={lead.decisionStatus || 'Pending'}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => patchLeadLocal(lead.id, 'decisionStatus', e.target.value)}
-                        style={inputStyle}
-                      >
-                        {DECISION_STATUSES.map((status) => (
-                          <option key={status} value={status}>{status}</option>
-                        ))}
-                      </select>
-
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            updateLead(lead)
-                          }}
-                          style={smallPrimaryStyle}
-                        >
-                          💾 حفظ
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setEditingId(null)
-                          }}
-                          style={smallDangerStyle}
-                        >
-                          ✖
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'start' }}>
-                        <b>{lead.company}</b>
-                        <span
-                          style={{
-                            background: stageBadgeColor(lead.stage),
-                            color: 'white',
-                            borderRadius: '999px',
-                            padding: '4px 8px',
-                            fontSize: '12px'
-                          }}
-                        >
-                          {lead.stage}
-                        </span>
-                      </div>
-
-                      <div style={{ marginTop: '10px', opacity: 0.92 }}>
-                        الخدمة: {lead.service || '-'}
-                      </div>
-                      <div>حالة الصفقة: {dealLabel(lead.dealStatus)}</div>
-                      <div>حالة القرار: {decisionLabel(lead.decisionStatus)}</div>
-                      <div>عرض السعر: {formatMoney(lead.quoteAmount)} ريال</div>
-                      <div>المدفوع: {formatMoney(lead.paidAmount)} ريال</div>
-                      <div>المتبقي: {formatMoney(lead.remainingAmount)} ريال</div>
-                      <div style={metaTextStyle}>📅 {formatDate(lead.createdAt)}</div>
-                      <div style={metaTextStyle}>📌 متابعة: {lead.nextFollowUpDate || '-'}</div>
-
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
-                        <a
-                          href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          style={waButtonStyle}
-                        >
-                          واتساب ذكي
-                        </a>
-
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setEditingId(lead.id)
-                          }}
-                          style={smallPrimaryStyle}
-                        >
-                          ✏️ تعديل
-                        </button>
-
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            deleteLead(lead.id)
-                          }}
-                          style={smallDangerStyle}
-                        >
-                          🗑️ حذف
-                        </button>
-                      </div>
-                    </>
-                  )}
-
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-                    <select
-                      value={lead.stage}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={async (e) => {
-                        const value = e.target.value
-                        patchLeadLocal(lead.id, 'stage', value)
-                        await saveQuickField(lead.id, 'stage', value)
-                      }}
-                      style={smallSelectStyle}
-                    >
-                      {STAGES.map((stageOption) => (
-                        <option key={stageOption} value={stageOption}>{stageOption}</option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={lead.temperature}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={async (e) => {
-                        const value = e.target.value
-                        patchLeadLocal(lead.id, 'temperature', value)
-                        await saveQuickField(lead.id, 'temperature', value)
-                      }}
-                      style={smallSelectStyle}
-                    >
-                      {TEMPERATURES.map((temp) => (
-                        <option key={temp} value={temp}>{temp}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function StatCard({ title, value }) {
-  return (
-    <div
-      style={{
-        background: '#12264d',
-        padding: '14px',
-        borderRadius: '14px',
-        border: '1px solid rgba(255,255,255,0.06)'
-      }}
-    >
-      <div style={{ opacity: 0.85, marginBottom: '8px', fontSize: '14px' }}>{title}</div>
-      <strong style={{ fontSize: '22px' }}>{value}</strong>
-    </div>
-  )
-}
-
-function InfoBox({ label, value }) {
-  return (
-    <div
-      style={{
-        background: '#16315f',
-        padding: '14px',
-        borderRadius: '12px',
-        border: '1px solid rgba(255,255,255,0.06)'
-      }}
-    >
-      <div style={{ opacity: 0.8, marginBottom: '6px', fontSize: '13px' }}>{label}</div>
-      <strong>{value}</strong>
-    </div>
-  )
-}
-
-function EmptyState({ text }) {
-  return (
-    <div
-      style={{
-        background: '#16315f',
-        padding: '14px',
-        borderRadius: '12px',
-        opacity: 0.8
-      }}
-    >
-      {text}
-    </div>
-  )
-}
-
-const inputStyle = {
-  width: '100%',
-  padding: '12px',
-  borderRadius: '10px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: '#12264d',
-  color: 'white',
-  outline: 'none',
-  boxSizing: 'border-box'
-}
-
-const primaryButtonStyle = {
-  background: '#2563eb',
-  color: 'white',
-  border: 'none',
-  borderRadius: '10px',
-  padding: '12px 16px',
-  cursor: 'pointer'
-}
-
-const dangerButtonStyle = {
-  background: '#ef4444',
-  color: 'white',
-  border: 'none',
-  borderRadius: '10px',
-  padding: '12px 16px',
-  cursor: 'pointer'
-}
-
-const waButtonStyle = {
-  background: '#16a34a',
-  color: 'white',
-  borderRadius: '10px',
-  padding: '10px 14px',
-  textDecoration: 'none',
-  display: 'inline-block'
-}
-
-const smallPrimaryStyle = {
-  background: '#2563eb',
-  color: 'white',
-  border: 'none',
-  borderRadius: '8px',
-  padding: '8px 12px',
-  cursor: 'pointer'
-}
-
-const smallDangerStyle = {
-  background: '#ef4444',
-  color: 'white',
-  border: 'none',
-  borderRadius: '8px',
-  padding: '8px 12px',
-  cursor: 'pointer'
-}
-
-const smallSelectStyle = {
-  ...inputStyle,
-  width: 'auto',
-  minWidth: '130px',
-  padding: '8px 10px'
-}
-
-const statsGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-  gap: '12px',
-  marginBottom: '20px'
-}
-
-const panelStyle = {
-  background: '#12264d',
-  padding: '18px',
-  borderRadius: '16px',
-  border: '1px solid rgba(255,255,255,0.06)',
-  marginBottom: '20px'
-}
-
-const detailPanelStyle = {
-  background: '#12264d',
-  padding: '18px',
-  borderRadius: '16px',
-  border: '1px solid rgba(255,255,255,0.06)',
-  marginBottom: '20px'
-}
-
-const detailHeaderStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: '12px',
-  flexWrap: 'wrap',
-  marginBottom: '16px'
-}
-
-const tabsStyle = {
-  display: 'flex',
-  gap: '8px',
-  flexWrap: 'wrap',
-  marginBottom: '16px'
-}
-
-const tabStyle = {
-  background: '#16315f',
-  color: 'white',
-  border: '1px solid rgba(255,255,255,0.06)',
-  borderRadius: '10px',
-  padding: '10px 14px',
-  cursor: 'pointer'
-}
-
-const activeTabStyle = {
-  ...tabStyle,
-  background: '#2563eb'
-}
-
-const pipelineStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-  gap: '14px'
-}
-
-const columnStyle = {
-  background: '#12264d',
-  padding: '14px',
-  borderRadius: '16px',
-  border: '1px solid rgba(255,255,255,0.06)'
-}
-
-const leadCardStyle = {
-  background: '#16315f',
-  padding: '14px',
-  borderRadius: '14px',
-  marginBottom: '12px',
-  border: '1px solid rgba(255,255,255,0.06)'
-}
-
-const itemCardStyle = {
-  background: '#16315f',
-  padding: '14px',
-  borderRadius: '12px',
-  border: '1px solid rgba(255,255,255,0.06)'
-}
-
-const listStyle = {
-  display: 'grid',
-  gap: '10px',
-  marginTop: '14px'
-}
-
-const metaTextStyle = {
-  marginTop: '8px',
-  fontSize: '13px',
-  opacity: 0.8
-}
-
-const grid4Style = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '10px'
-}
-
-const grid2Style = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: '10px'
-}
-
-const sectionTitleStyle = {
-  marginTop: 0,
-  marginBottom: '14px'
 }
