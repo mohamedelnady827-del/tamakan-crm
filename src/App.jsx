@@ -1,7 +1,7 @@
 import './styles.css'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-import { initializeApp } from "firebase/app"
+import { initializeApp } from 'firebase/app'
 import {
   getFirestore,
   collection,
@@ -11,7 +11,14 @@ import {
   updateDoc,
   onSnapshot,
   getDocs
-} from "firebase/firestore"
+} from 'firebase/firestore'
+
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL
+} from 'firebase/storage'
 
 const firebaseConfig = {
   apiKey: "AIzaSyB53c1aa_CGtDzE0JnUQjbzntYVRBQmx14",
@@ -24,66 +31,64 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
+const storage = getStorage(app)
 
 const sampleLead = {
   company: 'تمكن لتقنية المعلومات',
   phone: '966553909589',
+  email: 'info@tamakan.com.sa',
   temperature: 'Hot',
   stage: 'Lead',
-  status: 'جديد'
+  status: 'جديد',
+  dealAmount: 0,
+  closed: false,
+  comments: [
+    {
+      text: 'تم إنشاء العميل في النظام',
+      createdAt: new Date().toISOString()
+    }
+  ],
+  files: []
 }
+
+const emptyLead = {
+  company: '',
+  phone: '',
+  email: '',
+  temperature: 'Warm',
+  stage: 'Lead',
+  status: 'جديد',
+  dealAmount: '',
+  closed: false,
+  comments: [],
+  files: []
+}
+
+const stages = ['Lead', 'Contacted', 'Meeting', 'Proposal', 'Won']
 
 export default function App() {
   const [leads, setLeads] = useState([])
-  const [newLead, setNewLead] = useState({
-    company: '',
-    phone: '',
-    temperature: 'Warm',
-    stage: 'Lead'
-  })
   const [loading, setLoading] = useState(true)
-  const [editingId, setEditingId] = useState(null)
+  const [uploading, setUploading] = useState(false)
+
+  const [newLead, setNewLead] = useState(emptyLead)
+  const [selectedLeadId, setSelectedLeadId] = useState(null)
+  const [detailComment, setDetailComment] = useState('')
 
   useEffect(() => {
-    async function migrateOldDataIfNeeded() {
-      const leadsRef = collection(db, "leads")
+    async function seedIfEmpty() {
+      const leadsRef = collection(db, 'leads')
       const snapshot = await getDocs(leadsRef)
 
-      if (!snapshot.empty) {
-        return
+      if (snapshot.empty) {
+        await addDoc(leadsRef, sampleLead)
       }
-
-      const oldLocal = localStorage.getItem('leads')
-
-      if (oldLocal) {
-        try {
-          const parsed = JSON.parse(oldLocal)
-
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            for (const item of parsed) {
-              const { id, ...cleanItem } = item
-              await addDoc(leadsRef, {
-                company: cleanItem.company || '',
-                phone: cleanItem.phone || '',
-                temperature: cleanItem.temperature || 'Warm',
-                stage: cleanItem.stage || 'Lead',
-                status: cleanItem.status || 'جديد'
-              })
-            }
-            return
-          }
-        } catch (error) {
-          console.error('خطأ في قراءة localStorage:', error)
-        }
-      }
-
-      await addDoc(leadsRef, sampleLead)
     }
 
-    async function init() {
-      await migrateOldDataIfNeeded()
+    let unsubscribeRef
 
-      const unsubscribe = onSnapshot(collection(db, "leads"), (snapshot) => {
+    seedIfEmpty().then(() => {
+      unsubscribeRef = onSnapshot(collection(db, 'leads'), (snapshot) => {
         const data = snapshot.docs.map((item) => ({
           id: item.id,
           ...item.data()
@@ -91,14 +96,6 @@ export default function App() {
         setLeads(data)
         setLoading(false)
       })
-
-      return unsubscribe
-    }
-
-    let unsubscribeRef
-
-    init().then((unsubscribe) => {
-      unsubscribeRef = unsubscribe
     })
 
     return () => {
@@ -106,56 +103,141 @@ export default function App() {
     }
   }, [])
 
+  const selectedLead = useMemo(
+    () => leads.find((item) => item.id === selectedLeadId) || null,
+    [leads, selectedLeadId]
+  )
+
+  const stats = useMemo(() => {
+    const wonLeads = leads.filter((l) => l.stage === 'Won' || l.closed)
+    const totalWonAmount = wonLeads.reduce(
+      (sum, item) => sum + Number(item.dealAmount || 0),
+      0
+    )
+
+    return {
+      total: leads.length,
+      hot: leads.filter((l) => l.temperature === 'Hot').length,
+      warm: leads.filter((l) => l.temperature === 'Warm').length,
+      won: wonLeads.length,
+      wonAmount: totalWonAmount
+    }
+  }, [leads])
+
   async function addLead() {
     if (!newLead.company || !newLead.phone) {
-      alert('اكمل البيانات')
+      alert('اكمل اسم الشركة ورقم الجوال')
       return
     }
 
-    await addDoc(collection(db, "leads"), {
+    await addDoc(collection(db, 'leads'), {
       ...newLead,
-      status: 'جديد'
+      dealAmount: Number(newLead.dealAmount || 0),
+      closed: newLead.stage === 'Won',
+      comments: [
+        {
+          text: 'تم إضافة العميل',
+          createdAt: new Date().toISOString()
+        }
+      ],
+      files: []
     })
 
-    setNewLead({
-      company: '',
-      phone: '',
-      temperature: 'Warm',
-      stage: 'Lead'
-    })
+    setNewLead(emptyLead)
   }
 
   async function deleteLead(id) {
-    await deleteDoc(doc(db, "leads", id))
+    const ok = window.confirm('هل أنت متأكد من حذف العميل؟')
+    if (!ok) return
+
+    await deleteDoc(doc(db, 'leads', id))
+
+    if (selectedLeadId === id) {
+      setSelectedLeadId(null)
+    }
   }
 
-  async function updateLead(lead) {
-    const ref = doc(db, "leads", lead.id)
-    const { id, ...payload } = lead
-    await updateDoc(ref, payload)
-    setEditingId(null)
+  async function saveLeadDetails() {
+    if (!selectedLead) return
+
+    const { id, ...payload } = selectedLead
+
+    await updateDoc(doc(db, 'leads', id), {
+      ...payload,
+      dealAmount: Number(payload.dealAmount || 0),
+      closed: payload.stage === 'Won' || Boolean(payload.closed)
+    })
   }
 
-  function updateStage(id, stage) {
-    setLeads(
-      leads.map((item) =>
-        item.id === id ? { ...item, stage } : item
+  async function updateStage(id, stage) {
+    const lead = leads.find((item) => item.id === id)
+    if (!lead) return
+
+    await updateDoc(doc(db, 'leads', id), {
+      stage,
+      closed: stage === 'Won' ? true : lead.closed
+    })
+  }
+
+  function patchSelectedLead(field, value) {
+    setLeads((prev) =>
+      prev.map((item) =>
+        item.id === selectedLeadId ? { ...item, [field]: value } : item
       )
     )
   }
 
-  function updateTemp(id, temperature) {
-    setLeads(
-      leads.map((item) =>
-        item.id === id ? { ...item, temperature } : item
-      )
-    )
+  async function addComment() {
+    if (!selectedLead || !detailComment.trim()) return
+
+    const nextComments = [
+      ...(selectedLead.comments || []),
+      {
+        text: detailComment.trim(),
+        createdAt: new Date().toISOString()
+      }
+    ]
+
+    await updateDoc(doc(db, 'leads', selectedLead.id), {
+      comments: nextComments
+    })
+
+    setDetailComment('')
   }
 
-  const total = leads.length
-  const hotCount = leads.filter((l) => l.temperature === 'Hot').length
-  const warmCount = leads.filter((l) => l.temperature === 'Warm').length
-  const wonCount = leads.filter((l) => l.stage === 'Won').length
+  async function uploadLeadFile(file) {
+    if (!selectedLead || !file) return
+
+    try {
+      setUploading(true)
+
+      const filePath = `leads/${selectedLead.id}/${Date.now()}-${file.name}`
+      const storageRef = ref(storage, filePath)
+
+      await uploadBytes(storageRef, file)
+      const url = await getDownloadURL(storageRef)
+
+      const nextFiles = [
+        ...(selectedLead.files || []),
+        {
+          name: file.name,
+          url,
+          path: filePath,
+          uploadedAt: new Date().toISOString()
+        }
+      ]
+
+      await updateDoc(doc(db, 'leads', selectedLead.id), {
+        files: nextFiles
+      })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  function formatMoney(value) {
+    return new Intl.NumberFormat('en-US').format(Number(value || 0))
+  }
 
   if (loading) {
     return (
@@ -173,22 +255,27 @@ export default function App() {
       <div className="stats-grid stats-grid-extended">
         <div className="stat-card">
           <span>📊 العملاء</span>
-          <strong>{total}</strong>
+          <strong>{stats.total}</strong>
         </div>
 
         <div className="stat-card">
           <span>🔥 Hot</span>
-          <strong>{hotCount}</strong>
+          <strong>{stats.hot}</strong>
         </div>
 
         <div className="stat-card">
           <span>🟡 Warm</span>
-          <strong>{warmCount}</strong>
+          <strong>{stats.warm}</strong>
         </div>
 
         <div className="stat-card">
-          <span>💰 Won</span>
-          <strong>{wonCount}</strong>
+          <span>💰 الصفقات المغلقة</span>
+          <strong>{stats.won}</strong>
+        </div>
+
+        <div className="stat-card">
+          <span>💵 إجمالي المبالغ</span>
+          <strong>{formatMoney(stats.wonAmount)}</strong>
         </div>
       </div>
 
@@ -205,9 +292,17 @@ export default function App() {
           onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })}
         />
 
+        <input
+          placeholder="الإيميل"
+          value={newLead.email}
+          onChange={(e) => setNewLead({ ...newLead, email: e.target.value })}
+        />
+
         <select
           value={newLead.temperature}
-          onChange={(e) => setNewLead({ ...newLead, temperature: e.target.value })}
+          onChange={(e) =>
+            setNewLead({ ...newLead, temperature: e.target.value })
+          }
         >
           <option value="Hot">Hot</option>
           <option value="Warm">Warm</option>
@@ -217,12 +312,20 @@ export default function App() {
           value={newLead.stage}
           onChange={(e) => setNewLead({ ...newLead, stage: e.target.value })}
         >
-          <option value="Lead">Lead</option>
-          <option value="Contacted">Contacted</option>
-          <option value="Meeting">Meeting</option>
-          <option value="Proposal">Proposal</option>
-          <option value="Won">Won</option>
+          {stages.map((stage) => (
+            <option key={stage} value={stage}>
+              {stage}
+            </option>
+          ))}
         </select>
+
+        <input
+          placeholder="مبلغ الصفقة"
+          value={newLead.dealAmount}
+          onChange={(e) =>
+            setNewLead({ ...newLead, dealAmount: e.target.value })
+          }
+        />
 
         <button className="primary-btn" onClick={addLead}>
           ➕ إضافة
@@ -230,98 +333,64 @@ export default function App() {
       </div>
 
       <div className="pipeline">
-        {['Lead', 'Contacted', 'Meeting', 'Proposal', 'Won'].map((stage) => (
+        {stages.map((stage) => (
           <div key={stage} className="pipe-col">
             <h3>{stage}</h3>
 
             {leads
               .filter((item) => item.stage === stage)
               .map((lead) => (
-                <div key={lead.id} className="card">
-                  {editingId === lead.id ? (
-                    <>
-                      <input
-                        value={lead.company}
-                        onChange={(e) =>
-                          setLeads(
-                            leads.map((item) =>
-                              item.id === lead.id
-                                ? { ...item, company: e.target.value }
-                                : item
-                            )
-                          )
-                        }
-                      />
+                <div
+                  key={lead.id}
+                  className="card clickable-card"
+                  onClick={() => setSelectedLeadId(lead.id)}
+                >
+                  <div className="card-top">
+                    <b>{lead.company}</b>
+                    {lead.closed || lead.stage === 'Won' ? (
+                      <span className="closed-badge">✅ صفقة مغلقة</span>
+                    ) : null}
+                  </div>
 
-                      <input
-                        value={lead.phone}
-                        onChange={(e) =>
-                          setLeads(
-                            leads.map((item) =>
-                              item.id === lead.id
-                                ? { ...item, phone: e.target.value }
-                                : item
-                            )
-                          )
-                        }
-                      />
+                  <div className="mini-line">{lead.phone}</div>
 
-                      <div className="actions">
-                        <button onClick={() => updateLead(lead)}>💾</button>
-                        <button onClick={() => setEditingId(null)}>✖</button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <b>{lead.company}</b>
+                  <div className="mini-line">
+                    {lead.email || 'لا يوجد إيميل'}
+                  </div>
 
-                      <div style={{ marginTop: '8px' }}>
-                        <a
-                          href={`https://wa.me/${lead.phone}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="wa-btn"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="white"
-                            style={{ marginLeft: '6px' }}
-                          >
-                            <path d="M20.52 3.48A11.82 11.82 0 0012.05 0C5.47 0 .08 5.38.08 11.97c0 2.11.55 4.18 1.6 6.01L0 24l6.2-1.62a11.94 11.94 0 005.85 1.5h.01c6.58 0 11.97-5.38 11.97-11.97 0-3.2-1.25-6.21-3.51-8.43z" />
-                          </svg>
-                          واتساب
-                        </a>
-                      </div>
+                  <div className="mini-tags">
+                    <span className={lead.temperature === 'Hot' ? 'danger' : 'warn'}>
+                      {lead.temperature}
+                    </span>
+                    <span className="stage-pill">{lead.stage}</span>
+                  </div>
 
-                      <div className="actions">
-                        <button onClick={() => setEditingId(lead.id)}>✏️</button>
-                        <button onClick={() => deleteLead(lead.id)}>🗑️</button>
-                      </div>
-                    </>
-                  )}
+                  {(lead.closed || lead.stage === 'Won') && Number(lead.dealAmount) > 0 ? (
+                    <div className="deal-box">
+                      المبلغ: {formatMoney(lead.dealAmount)}
+                    </div>
+                  ) : null}
 
-                  <div style={{ marginTop: '10px' }}>
+                  <div className="actions">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteLead(lead.id)
+                      }}
+                    >
+                      🗑️
+                    </button>
+
                     <select
                       value={lead.stage}
+                      onClick={(e) => e.stopPropagation()}
                       onChange={(e) => updateStage(lead.id, e.target.value)}
                     >
-                      <option value="Lead">Lead</option>
-                      <option value="Contacted">Contacted</option>
-                      <option value="Meeting">Meeting</option>
-                      <option value="Proposal">Proposal</option>
-                      <option value="Won">Won</option>
-                    </select>
-
-                    <select
-                      value={lead.temperature}
-                      onChange={(e) => updateTemp(lead.id, e.target.value)}
-                      style={{ marginRight: '8px' }}
-                    >
-                      <option value="Hot">Hot</option>
-                      <option value="Warm">Warm</option>
+                      {stages.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -329,6 +398,176 @@ export default function App() {
           </div>
         ))}
       </div>
+
+      {selectedLead ? (
+        <div className="details-overlay" onClick={() => setSelectedLeadId(null)}>
+          <div className="details-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="details-header">
+              <h2>تفاصيل العميل</h2>
+              <button
+                className="close-btn"
+                onClick={() => setSelectedLeadId(null)}
+              >
+                ✖
+              </button>
+            </div>
+
+            <div className="details-grid">
+              <label>
+                اسم الشركة
+                <input
+                  value={selectedLead.company || ''}
+                  onChange={(e) => patchSelectedLead('company', e.target.value)}
+                />
+              </label>
+
+              <label>
+                رقم الجوال
+                <input
+                  value={selectedLead.phone || ''}
+                  onChange={(e) => patchSelectedLead('phone', e.target.value)}
+                />
+              </label>
+
+              <label>
+                الإيميل
+                <input
+                  value={selectedLead.email || ''}
+                  onChange={(e) => patchSelectedLead('email', e.target.value)}
+                />
+              </label>
+
+              <label>
+                الحالة
+                <input
+                  value={selectedLead.status || ''}
+                  onChange={(e) => patchSelectedLead('status', e.target.value)}
+                />
+              </label>
+
+              <label>
+                الحرارة
+                <select
+                  value={selectedLead.temperature || 'Warm'}
+                  onChange={(e) => patchSelectedLead('temperature', e.target.value)}
+                >
+                  <option value="Hot">Hot</option>
+                  <option value="Warm">Warm</option>
+                </select>
+              </label>
+
+              <label>
+                المرحلة
+                <select
+                  value={selectedLead.stage || 'Lead'}
+                  onChange={(e) => patchSelectedLead('stage', e.target.value)}
+                >
+                  {stages.map((stage) => (
+                    <option key={stage} value={stage}>
+                      {stage}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                مبلغ الصفقة
+                <input
+                  value={selectedLead.dealAmount || ''}
+                  onChange={(e) => patchSelectedLead('dealAmount', e.target.value)}
+                />
+              </label>
+
+              <label className="checkbox-line">
+                <input
+                  type="checkbox"
+                  checked={Boolean(selectedLead.closed || selectedLead.stage === 'Won')}
+                  onChange={(e) => patchSelectedLead('closed', e.target.checked)}
+                />
+                تم إغلاق الصفقة
+              </label>
+            </div>
+
+            <div className="details-actions">
+              <a
+                href={`https://wa.me/${selectedLead.phone}`}
+                target="_blank"
+                rel="noreferrer"
+                className="wa-btn"
+              >
+                واتساب
+              </a>
+
+              <button className="primary-btn" onClick={saveLeadDetails}>
+                💾 حفظ التعديلات
+              </button>
+            </div>
+
+            <div className="section-box">
+              <h3>التعليقات والملاحظات</h3>
+
+              <div className="comment-form">
+                <textarea
+                  placeholder="مثال: تم عمل مقابلة وتقديم عرض السعر"
+                  value={detailComment}
+                  onChange={(e) => setDetailComment(e.target.value)}
+                />
+                <button className="primary-btn" onClick={addComment}>
+                  إضافة تعليق
+                </button>
+              </div>
+
+              <div className="comment-list">
+                {(selectedLead.comments || []).length === 0 ? (
+                  <p className="muted-text">لا توجد تعليقات بعد</p>
+                ) : (
+                  selectedLead.comments.map((comment, index) => (
+                    <div className="comment-item" key={index}>
+                      <div>{comment.text}</div>
+                      <small>
+                        {new Date(comment.createdAt).toLocaleString()}
+                      </small>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="section-box">
+              <h3>ملفات العميل</h3>
+
+              <div className="upload-row">
+                <input
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) uploadLeadFile(file)
+                  }}
+                />
+                {uploading ? <span className="muted-text">جاري الرفع...</span> : null}
+              </div>
+
+              <div className="files-list">
+                {(selectedLead.files || []).length === 0 ? (
+                  <p className="muted-text">لا توجد ملفات مرفوعة</p>
+                ) : (
+                  selectedLead.files.map((file, index) => (
+                    <a
+                      key={index}
+                      href={file.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="file-link"
+                    >
+                      📎 {file.name}
+                    </a>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
