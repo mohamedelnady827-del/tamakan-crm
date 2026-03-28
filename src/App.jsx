@@ -32,7 +32,8 @@ const sampleLead = {
   phone: '966553909589',
   temperature: 'Hot',
   stage: 'Lead',
-  status: 'جديد'
+  status: 'جديد',
+  createdAt: Date.now()
 }
 
 export default function App() {
@@ -54,6 +55,7 @@ export default function App() {
     owner: '',
     status: 'Pending'
   })
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     async function migrateOldDataIfNeeded() {
@@ -78,7 +80,8 @@ export default function App() {
                 phone: cleanItem.phone || '',
                 temperature: cleanItem.temperature || 'Warm',
                 stage: cleanItem.stage || 'Lead',
-                status: cleanItem.status || 'جديد'
+                status: cleanItem.status || 'جديد',
+                createdAt: cleanItem.createdAt || Date.now()
               })
             }
             return
@@ -88,7 +91,10 @@ export default function App() {
         }
       }
 
-      await addDoc(leadsRef, sampleLead)
+      await addDoc(leadsRef, {
+        ...sampleLead,
+        createdAt: Date.now()
+      })
     }
 
     async function init() {
@@ -152,7 +158,8 @@ export default function App() {
 
     await addDoc(collection(db, "leads"), {
       ...newLead,
-      status: 'جديد'
+      status: 'جديد',
+      createdAt: Date.now()
     })
 
     setNewLead({
@@ -219,10 +226,38 @@ export default function App() {
     })
   }
 
+  function formatDate(timestamp) {
+    if (!timestamp) return '-'
+
+    const date = new Date(timestamp)
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+
+    return `${day}/${month}/${year}`
+  }
+
+  const filteredLeads = leads.filter((lead) => {
+    const text = searchTerm.trim().toLowerCase()
+
+    if (!text) return true
+
+    return (
+      (lead.company || '').toLowerCase().includes(text) ||
+      (lead.phone || '').toLowerCase().includes(text) ||
+      (lead.status || '').toLowerCase().includes(text) ||
+      (lead.stage || '').toLowerCase().includes(text)
+    )
+  })
+
   const total = leads.length
+  const filteredTotal = filteredLeads.length
   const hotCount = leads.filter((l) => l.temperature === 'Hot').length
   const warmCount = leads.filter((l) => l.temperature === 'Warm').length
   const wonCount = leads.filter((l) => l.stage === 'Won').length
+  const contactedCount = leads.filter((l) => l.stage === 'Contacted').length
+  const meetingCount = leads.filter((l) => l.stage === 'Meeting').length
+  const proposalCount = leads.filter((l) => l.stage === 'Proposal').length
 
   if (loading) {
     return (
@@ -237,10 +272,31 @@ export default function App() {
     <div className="container" dir="rtl">
       <h1>🚀 Tamakan CRM</h1>
 
+      <div style={{ marginBottom: '20px' }}>
+        <input
+          placeholder="بحث باسم الشركة أو الجوال أو الحالة أو المرحلة"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '12px',
+            borderRadius: '10px',
+            border: '1px solid rgba(255,255,255,0.12)',
+            background: '#12264d',
+            color: 'white'
+          }}
+        />
+      </div>
+
       <div className="stats-grid stats-grid-extended">
         <div className="stat-card">
-          <span>📊 العملاء</span>
+          <span>📊 إجمالي العملاء</span>
           <strong>{total}</strong>
+        </div>
+
+        <div className="stat-card">
+          <span>🔎 نتائج البحث</span>
+          <strong>{filteredTotal}</strong>
         </div>
 
         <div className="stat-card">
@@ -251,6 +307,21 @@ export default function App() {
         <div className="stat-card">
           <span>🟡 Warm</span>
           <strong>{warmCount}</strong>
+        </div>
+
+        <div className="stat-card">
+          <span>☎️ Contacted</span>
+          <strong>{contactedCount}</strong>
+        </div>
+
+        <div className="stat-card">
+          <span>🤝 Meeting</span>
+          <strong>{meetingCount}</strong>
+        </div>
+
+        <div className="stat-card">
+          <span>📄 Proposal</span>
+          <strong>{proposalCount}</strong>
         </div>
 
         <div className="stat-card">
@@ -336,6 +407,7 @@ export default function App() {
             <div><strong>الحالة:</strong> {selectedClient.status}</div>
             <div><strong>المرحلة:</strong> {selectedClient.stage}</div>
             <div><strong>درجة العميل:</strong> {selectedClient.temperature}</div>
+            <div><strong>تاريخ التسجيل:</strong> {formatDate(selectedClient.createdAt)}</div>
           </div>
 
           <div
@@ -430,7 +502,7 @@ export default function App() {
           <div key={stage} className="pipe-col">
             <h3>{stage}</h3>
 
-            {leads
+            {filteredLeads
               .filter((item) => item.stage === stage)
               .map((lead) => (
                 <div
@@ -491,6 +563,10 @@ export default function App() {
                   ) : (
                     <>
                       <b>{lead.company}</b>
+
+                      <div style={{ marginTop: '8px', fontSize: '13px', opacity: 0.8 }}>
+                        📅 {formatDate(lead.createdAt)}
+                      </div>
 
                       <div style={{ marginTop: '8px' }}>
                         <a
