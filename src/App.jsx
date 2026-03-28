@@ -1,202 +1,173 @@
 import './styles.css'
-import { useState, useEffect, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 
-const initialLeads = [
-  {
-    id: 1,
-    company: 'تمكن لتقنية المعلومات',
-    phone: '966553909589',
-    status: 'جديد',
-    temperature: 'Hot',
-    stage: 'Lead',
-  },
-]
+// 🔥 Firebase
+import { initializeApp } from "firebase/app"
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  updateDoc,
+  onSnapshot
+} from "firebase/firestore"
 
-const emptyLead = {
-  company: '',
-  phone: '',
-  temperature: 'Warm',
-  status: 'جديد',
-  stage: 'Lead',
+// 🔥 إعداد Firebase (من عندك)
+const firebaseConfig = {
+  apiKey: "AIzaSyB53c1aa_CGtDzE0JnUQjbntYVRBQmx14",
+  authDomain: "tamakan-crm.firebaseapp.com",
+  projectId: "tamakan-crm",
+  storageBucket: "tamakan-crm.firebasestorage.app",
+  messagingSenderId: "180077608637",
+  appId: "1:180077608637:web:bd09d667e20ed830f541d4"
 }
 
+const app = initializeApp(firebaseConfig)
+const db = getFirestore(app)
+
 export default function App() {
-  const [leads, setLeads] = useState(() => {
-    const saved = localStorage.getItem('leads')
-    return saved ? JSON.parse(saved) : initialLeads
+  const [leads, setLeads] = useState([])
+  const [newLead, setNewLead] = useState({
+    company: '',
+    phone: '',
+    temperature: 'Warm'
   })
 
-  const [newLead, setNewLead] = useState(emptyLead)
   const [editingId, setEditingId] = useState(null)
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('all')
 
+  // 🔥 تحميل البيانات من Firebase
   useEffect(() => {
-    localStorage.setItem('leads', JSON.stringify(leads))
-  }, [leads])
-
-  function addLead() {
-    if (!newLead.company || !newLead.phone) return
-
-    const item = { id: Date.now(), ...newLead }
-    setLeads([item, ...leads])
-    setNewLead(emptyLead)
-  }
-
-  function deleteLead(id) {
-    setLeads(leads.filter(l => l.id !== id))
-  }
-
-  function startEdit(lead) {
-    setEditingId(lead.id)
-    setNewLead(lead)
-  }
-
-  function saveEdit() {
-    setLeads(leads.map(l => l.id === editingId ? newLead : l))
-    setEditingId(null)
-    setNewLead(emptyLead)
-  }
-
-  function updateStage(id, stage) {
-    setLeads(leads.map(l => l.id === id ? { ...l, stage } : l))
-  }
-
-  const filtered = useMemo(() => {
-    return leads.filter(l => {
-      return (
-        (filter === 'all' || l.temperature === filter) &&
-        l.company.includes(search)
-      )
+    const unsubscribe = onSnapshot(collection(db, "leads"), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      setLeads(data)
     })
-  }, [leads, search, filter])
+
+    return () => unsubscribe()
+  }, [])
+
+  // 🔥 إضافة عميل
+  async function addLead() {
+    if (!newLead.company || !newLead.phone) {
+      alert('اكمل البيانات')
+      return
+    }
+
+    await addDoc(collection(db, "leads"), {
+      ...newLead,
+      status: 'جديد'
+    })
+
+    setNewLead({ company: '', phone: '', temperature: 'Warm' })
+  }
+
+  // 🔥 حذف
+  async function deleteLead(id) {
+    await deleteDoc(doc(db, "leads", id))
+  }
+
+  // 🔥 تعديل
+  async function updateLead(lead) {
+    const ref = doc(db, "leads", lead.id)
+    await updateDoc(ref, lead)
+    setEditingId(null)
+  }
 
   return (
     <div className="container" dir="rtl">
       <h1>🚀 Tamakan CRM</h1>
 
-      {/* 🔥 Dashboard */}
-      <div className="stats-grid stats-grid-extended">
-        <div className="stat-card">
-          <span>📊 العملاء</span>
-          <strong>{leads.length}</strong>
-        </div>
-
-        <div className="stat-card">
-          <span>🔥 Hot</span>
-          <strong>{leads.filter(l => l.temperature === 'Hot').length}</strong>
-        </div>
-
-        <div className="stat-card">
-          <span>🟡 Warm</span>
-          <strong>{leads.filter(l => l.temperature === 'Warm').length}</strong>
-        </div>
-
-        <div className="stat-card">
-          <span>💰 Won</span>
-          <strong>{leads.filter(l => l.stage === 'Won').length}</strong>
-        </div>
-      </div>
-
-      {/* 🔍 Search */}
-      <div className="top-bar">
-        <input
-          placeholder="ابحث"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-
-        <select onChange={(e) => setFilter(e.target.value)}>
-          <option value="all">الكل</option>
-          <option value="Hot">Hot</option>
-          <option value="Warm">Warm</option>
-        </select>
-      </div>
-
-      {/* 📝 Form */}
+      {/* 🔥 الفورم */}
       <div className="form-box">
         <input
           placeholder="اسم الشركة"
           value={newLead.company}
-          onChange={(e) =>
-            setNewLead({ ...newLead, company: e.target.value })
-          }
+          onChange={e => setNewLead({ ...newLead, company: e.target.value })}
         />
 
         <input
           placeholder="رقم الجوال"
           value={newLead.phone}
-          onChange={(e) =>
-            setNewLead({ ...newLead, phone: e.target.value })
-          }
+          onChange={e => setNewLead({ ...newLead, phone: e.target.value })}
         />
 
         <select
           value={newLead.temperature}
-          onChange={(e) =>
-            setNewLead({ ...newLead, temperature: e.target.value })
-          }
+          onChange={e => setNewLead({ ...newLead, temperature: e.target.value })}
         >
-          <option value="Hot">Hot</option>
-          <option value="Warm">Warm</option>
+          <option>Hot</option>
+          <option>Warm</option>
         </select>
 
-        <select
-          value={newLead.stage}
-          onChange={(e) =>
-            setNewLead({ ...newLead, stage: e.target.value })
-          }
-        >
-          <option value="Lead">Lead</option>
-          <option value="Contacted">Contacted</option>
-          <option value="Meeting">Meeting</option>
-          <option value="Proposal">Proposal</option>
-          <option value="Won">Won</option>
-        </select>
-
-        {editingId ? (
-          <button onClick={saveEdit} className="primary-btn">
-            💾 حفظ
-          </button>
-        ) : (
-          <button onClick={addLead} className="primary-btn">
-            ➕ إضافة
-          </button>
-        )}
+        <button className="primary-btn" onClick={addLead}>
+          إضافة
+        </button>
       </div>
 
-      {/* 📊 Pipeline */}
-      <div className="pipeline">
-        {['Lead', 'Contacted', 'Meeting', 'Proposal', 'Won'].map(stage => (
-          <div key={stage} className="pipe-col">
-            <h3>{stage}</h3>
+      {/* 🔥 الجدول */}
+      <table>
+        <thead>
+          <tr>
+            <th>الشركة</th>
+            <th>الحالة</th>
+            <th>الحرارة</th>
+            <th>واتساب</th>
+            <th>إدارة</th>
+          </tr>
+        </thead>
 
-            {leads
-              .filter(l => l.stage === stage)
-              .map(l => (
-                <div key={l.id} className="card">
-                  <b>{l.company}</b>
+        <tbody>
+          {leads.map((lead) => (
+            <tr key={lead.id}>
+              <td>
+                {editingId === lead.id ? (
+                  <input
+                    value={lead.company}
+                    onChange={(e) =>
+                      setLeads(leads.map(l =>
+                        l.id === lead.id ? { ...l, company: e.target.value } : l
+                      ))
+                    }
+                  />
+                ) : (
+                  lead.company
+                )}
+              </td>
 
-                  <div className="actions">
-                    <button onClick={() => startEdit(l)}>✏️</button>
-                    <button onClick={() => deleteLead(l.id)}>🗑️</button>
-                  </div>
+              <td>{lead.status}</td>
 
-                  <select
-                    value={l.stage}
-                    onChange={(e) => updateStage(l.id, e.target.value)}
-                  >
-                    <option>Lead</option>
-                    <option>Contacted</option>
-                    <option>Meeting</option>
-                    <option>Proposal</option>
-                    <option>Won</option>
-                  </select>
-                </div>
-              ))}
-          </div>
-        ))}
-      </div>
+              <td>
+                <span className={lead.temperature === 'Hot' ? 'danger' : 'warn'}>
+                  {lead.temperature}
+                </span>
+              </td>
+
+              <td>
+                <a
+                  href={`https://wa.me/${lead.phone}`}
+                  target="_blank"
+                  className="wa-btn"
+                >
+                  واتساب
+                </a>
+              </td>
+
+              <td>
+                {editingId === lead.id ? (
+                  <button onClick={() => updateLead(lead)}>💾 حفظ</button>
+                ) : (
+                  <button onClick={() => setEditingId(lead.id)}>✏️ تعديل</button>
+                )}
+
+                <button onClick={() => deleteLead(lead.id)}>🗑 حذف</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
