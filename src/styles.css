@@ -10,7 +10,6 @@ body {
   text-align: center;
 }
 
-/* 🔷 Dashboard */
 .stats-grid {
   display: grid;
   gap: 12px;
@@ -38,44 +37,6 @@ body {
   font-size: 24px;
 }
 
-/* 🔍 البحث */
-.top-bar {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.top-bar input,
-.top-bar select {
-  padding: 10px;
-  border-radius: 6px;
-  border: none;
-}
-
-/* 🧾 الجدول */
-table {
-  width: 100%;
-  margin-top: 20px;
-  border-collapse: collapse;
-  background: #132a4a;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-th,
-td {
-  padding: 12px;
-  border-bottom: 1px solid #1f3b66;
-  text-align: center;
-}
-
-thead {
-  background: #1d3b63;
-}
-
-/* 📝 الفورم */
 .form-box {
   display: flex;
   gap: 10px;
@@ -91,7 +52,6 @@ thead {
   border: none;
 }
 
-/* 🔵 زر رئيسي */
 .primary-btn {
   background: #00bfff;
   border: none;
@@ -105,147 +65,6 @@ thead {
   background: #0095cc;
 }
 
-/* ⚪ زر إلغاء */
-.cancel-btn {
-  background: #6b7280;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 6px;
-  color: white;
-  cursor: pointer;
-}
-
-.cancel-btn:hover {
-  background: #4b5563;
-}
-
-/* 🟢 واتساب */
-.wa-btn {
-  display: inline-block;
-  background: #25d366;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
-  text-decoration: none;
-  font-size: 14px;
-}
-
-/* 🔴 أولويّة عالية */
-.danger {
-  background: red;
-  padding: 4px 8px;
-  border-radius: 5px;
-  color: white;
-}
-
-/* 🟡 متوسط */
-.warn {
-  background: orange;
-  padding: 4px 8px;
-  border-radius: 5px;
-  color: white;
-}
-
-/* 🟢 لاحقًا */
-.ok-badge {
-  background: #0f766e;
-  padding: 4px 8px;
-  border-radius: 5px;
-  color: white;
-}
-
-/* 🗑️ حذف */
-.delete-btn {
-  background: #dc2626;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  color: white;
-  cursor: pointer;
-}
-
-.delete-btn:hover {
-  background: #b91c1c;
-}
-
-/* ✏️ تعديل */
-.edit-btn {
-  background: #f59e0b;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  color: white;
-  cursor: pointer;
-}
-
-.edit-btn:hover {
-  background: #d97706;
-}
-
-/* 🔄 المرحلة */
-.stage-select {
-  padding: 8px;
-  border-radius: 6px;
-  border: none;
-}
-
-/* 🎯 Stage Badge */
-.stage-badge {
-  display: inline-block;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-.stage-lead {
-  background: #334155;
-}
-
-.stage-contacted {
-  background: #2563eb;
-}
-
-.stage-meeting {
-  background: #7c3aed;
-}
-
-.stage-proposal {
-  background: #f59e0b;
-}
-
-.stage-won {
-  background: #16a34a;
-}
-
-/* 📊 Chart */
-.chart-box {
-  background: #132a4a;
-  padding: 20px;
-  border-radius: 12px;
-  margin-bottom: 20px;
-}
-
-/* 📱 Responsive */
-@media (max-width: 1100px) {
-  .stats-grid-extended {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 700px) {
-  .stats-grid-extended {
-    grid-template-columns: 1fr;
-  }
-
-  .container {
-    padding: 20px;
-  }
-
-  table {
-    font-size: 13px;
-  }
-}
 .pipeline {
   display: flex;
   gap: 10px;
@@ -257,6 +76,7 @@ thead {
   background: #132a4a;
   padding: 10px;
   border-radius: 10px;
+  min-height: 220px;
 }
 
 .card {
@@ -269,5 +89,47 @@ thead {
 .actions {
   display: flex;
   justify-content: space-between;
-  margin-top: 5px;
+  gap: 6px;
+}
+
+.actions button {
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.wa-btn {
+  display: inline-block;
+  background: #25d366;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.wa-btn:hover {
+  background: #1ebe5d;
+}
+
+@media (max-width: 1100px) {
+  .stats-grid-extended {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pipeline {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 700px) {
+  .stats-grid-extended {
+    grid-template-columns: 1fr;
+  }
+
+  .container {
+    padding: 20px;
+  }
 }
