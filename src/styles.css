@@ -17,7 +17,7 @@ body {
 }
 
 .stats-grid-extended {
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
 }
 
 .stat-card {
@@ -141,6 +141,15 @@ body {
   font-size: 13px;
 }
 
+.pending-box {
+  margin-top: 8px;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 13px;
+}
+
 .actions {
   display: flex;
   justify-content: space-between;
@@ -198,7 +207,7 @@ body {
 }
 
 .details-panel {
-  width: 520px;
+  width: 560px;
   max-width: 100%;
   height: 100%;
   overflow-y: auto;
@@ -239,10 +248,21 @@ body {
 }
 
 .details-grid input,
-.details-grid select {
+.details-grid select,
+.details-grid textarea {
   padding: 10px;
   border: none;
   border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.full-width {
+  grid-column: span 2;
+}
+
+.full-width textarea {
+  min-height: 90px;
+  resize: vertical;
 }
 
 .checkbox-line {
@@ -265,6 +285,25 @@ body {
   padding: 16px;
   margin-top: 16px;
   text-align: right;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.summary-item {
+  background: #1d3b63;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.summary-item span {
+  display: block;
+  color: #cbd5e1;
+  margin-bottom: 8px;
+  font-size: 13px;
 }
 
 .comment-form textarea {
@@ -318,9 +357,9 @@ body {
   color: #cbd5e1;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
   .stats-grid-extended {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .pipeline {
@@ -337,11 +376,13 @@ body {
     padding: 20px;
   }
 
-  .details-grid {
+  .details-grid,
+  .summary-grid {
     grid-template-columns: 1fr;
   }
 
-  .checkbox-line {
+  .checkbox-line,
+  .full-width {
     grid-column: span 1;
   }
 
