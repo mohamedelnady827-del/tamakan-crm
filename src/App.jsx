@@ -87,6 +87,7 @@ export default function App() {
     <div className="container" dir="rtl">
       <h1>🚀 Tamakan CRM</h1>
 
+      {/* الإحصائيات */}
       <div className="stats-grid stats-grid-extended">
         <div className="stat-card">
           <span>📊 العملاء</span>
@@ -109,6 +110,7 @@ export default function App() {
         </div>
       </div>
 
+      {/* الفورم */}
       <div className="form-box">
         <input
           placeholder="اسم الشركة"
@@ -146,6 +148,7 @@ export default function App() {
         </button>
       </div>
 
+      {/* Pipeline */}
       <div className="pipeline">
         {['Lead', 'Contacted', 'Meeting', 'Proposal', 'Won'].map(stage => (
           <div key={stage} className="pipe-col">
@@ -155,8 +158,10 @@ export default function App() {
               .filter(l => l.stage === stage)
               .map(lead => (
                 <div key={lead.id} className="card">
+
                   <b>{lead.company}</b>
 
+                  {/* زر واتساب احترافي */}
                   <div style={{ marginTop: '8px' }}>
                     <a
                       href={`https://wa.me/${lead.phone}`}
@@ -164,13 +169,24 @@ export default function App() {
                       rel="noreferrer"
                       className="wa-btn"
                     >
-                      📲 فتح واتساب
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="white"
+                        style={{ marginLeft: "6px" }}
+                      >
+                        <path d="M20.52 3.48A11.82 11.82 0 0012.05 0C5.47 0 .08 5.38.08 11.97c0 2.11.55 4.18 1.6 6.01L0 24l6.2-1.62a11.94 11.94 0 005.85 1.5h.01c6.58 0 11.97-5.38 11.97-11.97 0-3.2-1.25-6.21-3.51-8.43z"/>
+                      </svg>
+                      واتساب
                     </a>
                   </div>
 
-                  <div className="actions" style={{ marginTop: '10px' }}>
+                  {/* التحكم */}
+                  <div className="actions">
                     {editingId === lead.id ? (
-                      <button onClick={() => updateLead(lead)}>💾 حفظ</button>
+                      <button onClick={() => updateLead(lead)}>💾</button>
                     ) : (
                       <button onClick={() => setEditingId(lead.id)}>✏️</button>
                     )}
@@ -178,10 +194,10 @@ export default function App() {
                     <button onClick={() => deleteLead(lead.id)}>🗑️</button>
                   </div>
 
+                  {/* تغيير المرحلة */}
                   <select
                     value={lead.stage}
                     onChange={(e) => updateStage(lead.id, e.target.value)}
-                    style={{ marginTop: '10px' }}
                   >
                     <option>Lead</option>
                     <option>Contacted</option>
@@ -189,6 +205,7 @@ export default function App() {
                     <option>Proposal</option>
                     <option>Won</option>
                   </select>
+
                 </div>
               ))}
           </div>
