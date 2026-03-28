@@ -26,17 +26,6 @@ body {
   border-radius: 10px;
 }
 
-.stat-card span {
-  display: block;
-  font-size: 14px;
-  margin-bottom: 8px;
-  color: #c7d2fe;
-}
-
-.stat-card strong {
-  font-size: 24px;
-}
-
 .form-box {
   display: flex;
   gap: 10px;
@@ -61,14 +50,9 @@ body {
   cursor: pointer;
 }
 
-.primary-btn:hover {
-  background: #0095cc;
-}
-
 .pipeline {
   display: flex;
   gap: 10px;
-  margin-top: 20px;
 }
 
 .pipe-col {
@@ -76,7 +60,6 @@ body {
   background: #132a4a;
   padding: 10px;
   border-radius: 10px;
-  min-height: 220px;
 }
 
 .card {
@@ -89,18 +72,13 @@ body {
 .actions {
   display: flex;
   justify-content: space-between;
-  gap: 6px;
-}
-
-.actions button {
-  border: none;
-  border-radius: 6px;
-  padding: 6px 10px;
-  cursor: pointer;
+  margin-top: 10px;
 }
 
 .wa-btn {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: #25d366;
   color: white;
   padding: 8px 14px;
@@ -108,28 +86,10 @@ body {
   text-decoration: none;
   font-size: 14px;
   font-weight: bold;
+  transition: 0.2s;
 }
 
 .wa-btn:hover {
   background: #1ebe5d;
-}
-
-@media (max-width: 1100px) {
-  .stats-grid-extended {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .pipeline {
-    flex-direction: column;
-  }
-}
-
-@media (max-width: 700px) {
-  .stats-grid-extended {
-    grid-template-columns: 1fr;
-  }
-
-  .container {
-    padding: 20px;
-  }
+  transform: scale(1.05);
 }
