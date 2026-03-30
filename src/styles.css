@@ -23,10 +23,36 @@
   --warning: #f59e0b;
   --purple: #7c3aed;
   --cyan: #06b6d4;
+  --secondary: #22324e;
+  --secondary-hover: #2b4064;
   --radius-lg: 20px;
   --radius-md: 14px;
   --radius-sm: 10px;
   --shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+}
+
+body[data-theme='light'] {
+  --bg: #f4f7fb;
+  --sidebar: #ffffff;
+  --panel: #ffffff;
+  --panel-2: #f7f9fc;
+  --card: #ffffff;
+  --card-hover: #eef3fb;
+  --text: #0f172a;
+  --muted: rgba(15, 23, 42, 0.68);
+  --border: rgba(15, 23, 42, 0.08);
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --success: #16a34a;
+  --success-hover: #15803d;
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --warning: #f59e0b;
+  --purple: #7c3aed;
+  --cyan: #06b6d4;
+  --secondary: #e8eef8;
+  --secondary-hover: #dbe7f8;
+  --shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
 html,
@@ -63,7 +89,7 @@ textarea {
 
 input::placeholder,
 textarea::placeholder {
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--muted);
 }
 
 input:focus,
@@ -101,6 +127,18 @@ a {
 
 .primary-btn:hover {
   background: var(--primary-hover);
+}
+
+.secondary-btn {
+  background: var(--secondary);
+  color: var(--text);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.secondary-btn:hover {
+  background: var(--secondary-hover);
 }
 
 .danger-btn {
@@ -166,7 +204,7 @@ a {
 }
 
 .saas-sidebar {
-  background: linear-gradient(180deg, #0b1629 0%, #0d1728 100%);
+  background: linear-gradient(180deg, var(--sidebar) 0%, var(--sidebar) 100%);
   border-left: 1px solid var(--border);
   padding: 24px 18px;
   position: sticky;
@@ -190,6 +228,7 @@ a {
   align-items: center;
   justify-content: center;
   font-weight: 700;
+  color: white;
 }
 
 .saas-brand-title {
@@ -219,7 +258,7 @@ a {
 }
 
 .saas-nav-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(37, 99, 235, 0.06);
 }
 
 .saas-nav-item.active {
@@ -253,6 +292,7 @@ a {
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .saas-search {
@@ -313,7 +353,7 @@ a {
 }
 
 .stat-card {
-  background: linear-gradient(180deg, #12203a 0%, #101b30 100%);
+  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
   padding: 16px;
   border-radius: 16px;
   border: 1px solid var(--border);
@@ -383,7 +423,7 @@ a {
 }
 
 .saas-column-header span {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(37, 99, 235, 0.1);
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
@@ -394,7 +434,7 @@ a {
 }
 
 .saas-lead-card {
-  background: linear-gradient(180deg, #162742 0%, #13243e 100%);
+  background: linear-gradient(180deg, var(--card) 0%, var(--panel-2) 100%);
   border: 1px solid var(--border);
   border-right: 4px solid var(--primary);
   padding: 14px;
@@ -426,7 +466,7 @@ a {
 
 .saas-stage-chip {
   background: rgba(37, 99, 235, 0.18);
-  color: white;
+  color: var(--text);
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
@@ -435,7 +475,7 @@ a {
 
 .saas-lead-meta {
   margin-top: 8px;
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--text);
   font-size: 14px;
 }
 
@@ -464,11 +504,11 @@ a {
 .drawer-panel {
   width: min(680px, 100%);
   height: 100vh;
-  background: #0e182b;
+  background: var(--panel);
   border-right: 1px solid var(--border);
   padding: 20px;
   overflow-y: auto;
-  box-shadow: -20px 0 40px rgba(0, 0, 0, 0.35);
+  box-shadow: -20px 0 40px rgba(0, 0, 0, 0.25);
 }
 
 .drawer-panel-wide {
@@ -492,7 +532,7 @@ a {
 
 .tabs button {
   background: var(--panel-2);
-  color: white;
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 10px 14px;
@@ -500,11 +540,12 @@ a {
 
 .tabs button.active {
   background: var(--primary);
+  color: white;
   border-color: transparent;
 }
 
 .info-box {
-  background: linear-gradient(180deg, #14233d 0%, #12203a 100%);
+  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 14px;
@@ -535,7 +576,7 @@ a {
 
 .empty-state {
   background: var(--panel-2);
-  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border: 1px dashed var(--border);
   border-radius: 14px;
   padding: 16px;
   color: var(--muted);
@@ -575,6 +616,10 @@ a {
 ::-webkit-scrollbar-thumb {
   background: #223a64;
   border-radius: 12px;
+}
+
+body[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: #c7d5ee;
 }
 
 @media (max-width: 1200px) {
