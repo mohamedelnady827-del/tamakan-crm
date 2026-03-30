@@ -5,13 +5,13 @@ import {
   getFirestore,
   collection,
   addDoc,
-  deleteDoc,
   doc,
   updateDoc,
   onSnapshot,
   getDocs,
   query,
-  orderBy
+  orderBy,
+  deleteDoc
 } from 'firebase/firestore'
 
 const firebaseConfig = {
@@ -32,7 +32,15 @@ const DEAL_STATUSES = ['Open', 'Won', 'Lost']
 const DECISION_STATUSES = ['Pending', 'Approved', 'Rejected', 'No Response']
 const TASK_STATUSES = ['Pending', 'In Progress', 'Done']
 const PAYMENT_STATUSES = ['Pending', 'Paid', 'Partial']
-const TABS = ['overview', 'tasks', 'notes', 'files', 'payments']
+const LOST_REASONS = [
+  'السعر',
+  'لا يوجد رد',
+  'ذهب لمنافس',
+  'تأخر القرار',
+  'تم إلغاء المشروع',
+  'سبب آخر'
+]
+const TABS = ['overview', 'tasks', 'notes', 'files', 'payments', 'activity']
 
 const AR = {
   lead: 'عميل محتمل',
@@ -61,12 +69,14 @@ const AR = {
   tasks: 'المهام',
   reports: 'التقارير',
   settings: 'الإعدادات',
+  archived: 'المؤرشف',
 
   addClient: 'إضافة عميل',
   notes: 'الملاحظات',
   files: 'الملفات',
   payments: 'الدفعات',
   overview: 'نظرة عامة',
+  activity: 'النشاط',
 
   company: 'اسم الشركة',
   phone: 'رقم الجوال',
@@ -82,12 +92,15 @@ const AR = {
   decisionStatus: 'حالة القرار',
   temperature: 'درجة العميل',
   stage: 'المرحلة',
+  lostReason: 'سبب الخسارة',
 
   whatsapp: 'واتساب ذكي',
   edit: 'تعديل',
   delete: 'حذف',
   save: 'حفظ',
   cancel: 'إلغاء',
+  archive: 'أرشفة',
+  restore: 'استرجاع',
   todayTasks: 'مهام اليوم',
   overdueTasks: 'مهام متأخرة',
   doneTasks: 'مهام مكتملة',
@@ -108,7 +121,8 @@ const emptyLeadForm = {
   decisionStatus: 'Pending',
   quoteAmount: '',
   expectedCloseDate: '',
-  nextFollowUpDate: ''
+  nextFollowUpDate: '',
+  lostReason: ''
 }
 
 const emptyTaskForm = {
@@ -144,6 +158,8 @@ const sampleLead = {
   remainingAmount: 0,
   expectedCloseDate: '',
   nextFollowUpDate: '',
+  lostReason: '',
+  archived: false,
   lastActivityAt: Date.now(),
   createdAt: Date.now()
 }
@@ -254,6 +270,7 @@ function buildWhatsAppMessage(lead) {
 
   if (lead.dealStatus === 'Lost') {
     text += `نشكر لكم وقتكم.\n`
+    if (lead.lostReason) text += `سبب عدم الإغلاق: ${lead.lostReason}\n`
     text += `إذا رغبتم بإعادة فتح النقاش بخصوص ${service} فنحن جاهزون لخدمتكم.`
     return encodeURIComponent(text)
   }
@@ -289,6 +306,7 @@ function Sidebar({ currentPage, setCurrentPage }) {
     { key: 'clients', label: AR.clients },
     { key: 'tasks', label: AR.tasks },
     { key: 'reports', label: AR.reports },
+    { key: 'archived', label: AR.archived },
     { key: 'settings', label: AR.settings }
   ]
 
@@ -326,6 +344,7 @@ function Topbar({ searchTerm, setSearchTerm, openAddPanel, currentPage }) {
           {currentPage === 'clients' && AR.clients}
           {currentPage === 'tasks' && AR.tasks}
           {currentPage === 'reports' && AR.reports}
+          {currentPage === 'archived' && AR.archived}
           {currentPage === 'settings' && AR.settings}
         </h1>
         <p className="saas-page-subtitle">إدارة العملاء والصفقات والمتابعات | Client & Sales Management</p>
@@ -406,6 +425,8 @@ export default function App() {
   const [clientPayments, setClientPayments] = useState([])
   const [paymentForm, setPaymentForm] = useState(emptyPaymentForm)
 
+  const [clientActivity, setClientActivity] = useState([])
+
   useEffect(() => {
     async function seedIfNeeded() {
       const leadsRef = collection(db, 'leads')
@@ -434,6 +455,8 @@ export default function App() {
                 remainingAmount: Math.max(quoteAmount - paidAmount, 0),
                 expectedCloseDate: item.expectedCloseDate || '',
                 nextFollowUpDate: item.nextFollowUpDate || '',
+                lostReason: item.lostReason || '',
+                archived: item.archived || false,
                 lastActivityAt: item.lastActivityAt || Date.now(),
                 createdAt: item.createdAt || Date.now()
               })
@@ -483,48 +506,44 @@ export default function App() {
       setClientNotes([])
       setClientFiles([])
       setClientPayments([])
+      setClientActivity([])
       return
     }
 
     const unsubscribers = []
 
-    const tasksQ = query(
-      collection(db, 'leads', selectedClient.id, 'tasks'),
-      orderBy('createdAt', 'desc')
-    )
+    const tasksQ = query(collection(db, 'leads', selectedClient.id, 'tasks'), orderBy('createdAt', 'desc'))
     unsubscribers.push(
       onSnapshot(tasksQ, (snapshot) => {
         setClientTasks(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
       })
     )
 
-    const notesQ = query(
-      collection(db, 'leads', selectedClient.id, 'notes'),
-      orderBy('createdAt', 'desc')
-    )
+    const notesQ = query(collection(db, 'leads', selectedClient.id, 'notes'), orderBy('createdAt', 'desc'))
     unsubscribers.push(
       onSnapshot(notesQ, (snapshot) => {
         setClientNotes(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
       })
     )
 
-    const filesQ = query(
-      collection(db, 'leads', selectedClient.id, 'files'),
-      orderBy('createdAt', 'desc')
-    )
+    const filesQ = query(collection(db, 'leads', selectedClient.id, 'files'), orderBy('createdAt', 'desc'))
     unsubscribers.push(
       onSnapshot(filesQ, (snapshot) => {
         setClientFiles(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
       })
     )
 
-    const paymentsQ = query(
-      collection(db, 'leads', selectedClient.id, 'payments'),
-      orderBy('createdAt', 'desc')
-    )
+    const paymentsQ = query(collection(db, 'leads', selectedClient.id, 'payments'), orderBy('createdAt', 'desc'))
     unsubscribers.push(
       onSnapshot(paymentsQ, (snapshot) => {
         setClientPayments(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
+      })
+    )
+
+    const activityQ = query(collection(db, 'leads', selectedClient.id, 'activity'), orderBy('createdAt', 'desc'))
+    unsubscribers.push(
+      onSnapshot(activityQ, (snapshot) => {
+        setClientActivity(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
       })
     )
 
@@ -544,26 +563,26 @@ export default function App() {
     async function loadAllTasks() {
       try {
         const tasksResults = await Promise.all(
-          leads.map(async (lead) => {
-            const tasksRef = collection(db, 'leads', lead.id, 'tasks')
-            const snapshot = await getDocs(tasksRef)
+          leads
+            .filter((lead) => !lead.archived)
+            .map(async (lead) => {
+              const tasksRef = collection(db, 'leads', lead.id, 'tasks')
+              const snapshot = await getDocs(tasksRef)
 
-            return snapshot.docs.map((docSnap) => ({
-              id: docSnap.id,
-              clientId: lead.id,
-              clientName: lead.company || 'عميل غير معروف',
-              ...docSnap.data()
-            }))
-          })
+              return snapshot.docs.map((docSnap) => ({
+                id: docSnap.id,
+                clientId: lead.id,
+                clientName: lead.company || 'عميل غير معروف',
+                ...docSnap.data()
+              }))
+            })
         )
 
         const mergedTasks = tasksResults
           .flat()
           .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
 
-        if (isMounted) {
-          setAllTasks(mergedTasks)
-        }
+        if (isMounted) setAllTasks(mergedTasks)
       } catch (error) {
         console.error('خطأ في تحميل كل المهام:', error)
       }
@@ -575,6 +594,14 @@ export default function App() {
       isMounted = false
     }
   }, [leads])
+
+  async function logActivity(clientId, action, details = '') {
+    await addDoc(collection(db, 'leads', clientId, 'activity'), {
+      action,
+      details,
+      createdAt: Date.now()
+    })
+  }
 
   async function touchClient(clientId, extra = {}) {
     await updateDoc(doc(db, 'leads', clientId), {
@@ -613,7 +640,7 @@ export default function App() {
 
     const quoteAmount = Number(newLead.quoteAmount || 0)
 
-    await addDoc(collection(db, 'leads'), {
+    const newDoc = await addDoc(collection(db, 'leads'), {
       company: newLead.company,
       phone: newLead.phone,
       service: newLead.service,
@@ -627,9 +654,13 @@ export default function App() {
       remainingAmount: quoteAmount,
       expectedCloseDate: newLead.expectedCloseDate || '',
       nextFollowUpDate: newLead.nextFollowUpDate || '',
+      lostReason: newLead.lostReason || '',
+      archived: false,
       lastActivityAt: Date.now(),
       createdAt: Date.now()
     })
+
+    await logActivity(newDoc.id, 'إنشاء العميل', `تم إنشاء العميل ${newLead.company}`)
 
     setNewLead(emptyLeadForm)
     setShowAddPanel(false)
@@ -646,8 +677,32 @@ export default function App() {
       lastActivityAt: Date.now()
     })
 
+    await logActivity(id, 'تحديث بيانات العميل', `تم تحديث بيانات العميل ${lead.company}`)
     await recalcPayments(id, quoteAmount)
     setEditingId(null)
+  }
+
+  async function archiveLead(id) {
+    const lead = leads.find((x) => x.id === id)
+    await updateDoc(doc(db, 'leads', id), {
+      archived: true,
+      lastActivityAt: Date.now()
+    })
+    await logActivity(id, 'أرشفة العميل', `تمت أرشفة العميل ${lead?.company || ''}`)
+
+    if (selectedClient?.id === id) {
+      setSelectedClient(null)
+      setActiveTab('overview')
+    }
+  }
+
+  async function restoreLead(id) {
+    const lead = leads.find((x) => x.id === id)
+    await updateDoc(doc(db, 'leads', id), {
+      archived: false,
+      lastActivityAt: Date.now()
+    })
+    await logActivity(id, 'استرجاع العميل', `تم استرجاع العميل ${lead?.company || ''}`)
   }
 
   async function deleteLead(id) {
@@ -667,6 +722,7 @@ export default function App() {
       [field]: value,
       lastActivityAt: Date.now()
     })
+    await logActivity(id, 'تحديث سريع', `تم تحديث ${field} إلى ${value}`)
   }
 
   async function addTask() {
@@ -685,6 +741,7 @@ export default function App() {
     })
 
     await touchClient(selectedClient.id)
+    await logActivity(selectedClient.id, 'إضافة مهمة', `تمت إضافة مهمة: ${taskForm.title}`)
     setTaskForm(emptyTaskForm)
     setCurrentPage('tasks')
   }
@@ -711,6 +768,7 @@ export default function App() {
     })
 
     await touchClient(clientId)
+    await logActivity(clientId, 'تعديل مهمة', `تم تعديل مهمة: ${editingTaskData.title}`)
     setEditingTaskId(null)
     setEditingTaskData({
       title: '',
@@ -725,6 +783,7 @@ export default function App() {
     if (!clientId) return
     await updateDoc(doc(db, 'leads', clientId, 'tasks', taskId), { status })
     await touchClient(clientId)
+    await logActivity(clientId, 'تحديث حالة مهمة', `تم تحديث حالة المهمة إلى ${taskStatusLabel(status)}`)
   }
 
   async function deleteTask(taskId, clientIdOverride = null) {
@@ -732,6 +791,7 @@ export default function App() {
     if (!clientId) return
     await deleteDoc(doc(db, 'leads', clientId, 'tasks', taskId))
     await touchClient(clientId)
+    await logActivity(clientId, 'حذف مهمة', 'تم حذف مهمة')
   }
 
   async function addNote() {
@@ -746,6 +806,7 @@ export default function App() {
     })
 
     await touchClient(selectedClient.id)
+    await logActivity(selectedClient.id, 'إضافة ملاحظة', noteText.trim())
     setNoteText('')
   }
 
@@ -753,6 +814,7 @@ export default function App() {
     if (!selectedClient) return
     await deleteDoc(doc(db, 'leads', selectedClient.id, 'notes', noteId))
     await touchClient(selectedClient.id)
+    await logActivity(selectedClient.id, 'حذف ملاحظة', 'تم حذف ملاحظة')
   }
 
   async function addFile() {
@@ -768,6 +830,7 @@ export default function App() {
     })
 
     await touchClient(selectedClient.id)
+    await logActivity(selectedClient.id, 'إضافة ملف', `نوع الملف: ${fileForm.type}`)
     setFileForm(emptyFileForm)
   }
 
@@ -775,6 +838,7 @@ export default function App() {
     if (!selectedClient) return
     await deleteDoc(doc(db, 'leads', selectedClient.id, 'files', fileId))
     await touchClient(selectedClient.id)
+    await logActivity(selectedClient.id, 'حذف ملف', 'تم حذف ملف')
   }
 
   async function addPayment() {
@@ -793,6 +857,11 @@ export default function App() {
     })
 
     await touchClient(selectedClient.id)
+    await logActivity(
+      selectedClient.id,
+      'إضافة دفعة',
+      `دفعة: ${paymentForm.title} - ${paymentForm.amount} ريال`
+    )
     await recalcPayments(selectedClient.id)
     setPaymentForm(emptyPaymentForm)
   }
@@ -801,6 +870,7 @@ export default function App() {
     if (!selectedClient) return
     await updateDoc(doc(db, 'leads', selectedClient.id, 'payments', paymentId), { status })
     await touchClient(selectedClient.id)
+    await logActivity(selectedClient.id, 'تحديث حالة دفعة', `تم تحديث الحالة إلى ${paymentStatusLabel(status)}`)
     await recalcPayments(selectedClient.id)
   }
 
@@ -808,6 +878,7 @@ export default function App() {
     if (!selectedClient) return
     await deleteDoc(doc(db, 'leads', selectedClient.id, 'payments', paymentId))
     await touchClient(selectedClient.id)
+    await logActivity(selectedClient.id, 'حذف دفعة', 'تم حذف دفعة')
     await recalcPayments(selectedClient.id)
   }
 
@@ -822,10 +893,12 @@ export default function App() {
       'عرض السعر',
       'المدفوع',
       'المتبقي',
-      'تاريخ التسجيل'
+      'المتابعة القادمة',
+      'تاريخ التسجيل',
+      'سبب الخسارة'
     ]
 
-    const rows = filteredLeads.map((lead) => [
+    const rows = activeLeads.map((lead) => [
       lead.company,
       lead.phone,
       lead.service,
@@ -835,7 +908,9 @@ export default function App() {
       lead.quoteAmount,
       lead.paidAmount,
       lead.remainingAmount,
-      formatDate(lead.createdAt)
+      lead.nextFollowUpDate || '',
+      formatDate(lead.createdAt),
+      lead.lostReason || ''
     ])
 
     const csv = [headers, ...rows]
@@ -852,8 +927,11 @@ export default function App() {
     link.click()
   }
 
+  const activeLeads = useMemo(() => leads.filter((lead) => !lead.archived), [leads])
+  const archivedLeads = useMemo(() => leads.filter((lead) => lead.archived), [leads])
+
   const filteredLeads = useMemo(() => {
-    return leads.filter((lead) => {
+    return activeLeads.filter((lead) => {
       const q = searchTerm.trim().toLowerCase()
 
       const matchesSearch =
@@ -870,7 +948,19 @@ export default function App() {
 
       return matchesSearch && matchesStage && matchesTemp && matchesDeal
     })
-  }, [leads, searchTerm, stageFilter, tempFilter, dealFilter])
+  }, [activeLeads, searchTerm, stageFilter, tempFilter, dealFilter])
+
+  const filteredArchivedLeads = useMemo(() => {
+    return archivedLeads.filter((lead) => {
+      const q = searchTerm.trim().toLowerCase()
+      return (
+        !q ||
+        (lead.company || '').toLowerCase().includes(q) ||
+        (lead.phone || '').toLowerCase().includes(q) ||
+        (lead.service || '').toLowerCase().includes(q)
+      )
+    })
+  }, [archivedLeads, searchTerm])
 
   const filteredAllTasks = useMemo(() => {
     if (taskViewFilter === 'Today') return allTasks.filter(isTaskToday)
@@ -879,23 +969,33 @@ export default function App() {
     return allTasks
   }, [allTasks, taskViewFilter])
 
-  const total = leads.length
+  const total = activeLeads.length
   const filteredTotal = filteredLeads.length
-  const hotCount = leads.filter((x) => x.temperature === 'Hot').length
-  const warmCount = leads.filter((x) => x.temperature === 'Warm').length
-  const contactedCount = leads.filter((x) => x.stage === 'Contacted').length
-  const meetingCount = leads.filter((x) => x.stage === 'Meeting').length
-  const proposalCount = leads.filter((x) => x.stage === 'Proposal').length
-  const wonCount = leads.filter((x) => x.dealStatus === 'Won' || x.stage === 'Won').length
-  const lostCount = leads.filter((x) => x.dealStatus === 'Lost').length
-  const totalDealValue = leads.reduce((sum, x) => sum + Number(x.quoteAmount || 0), 0)
-  const totalWonValue = leads
+  const hotCount = activeLeads.filter((x) => x.temperature === 'Hot').length
+  const warmCount = activeLeads.filter((x) => x.temperature === 'Warm').length
+  const contactedCount = activeLeads.filter((x) => x.stage === 'Contacted').length
+  const meetingCount = activeLeads.filter((x) => x.stage === 'Meeting').length
+  const proposalCount = activeLeads.filter((x) => x.stage === 'Proposal').length
+  const wonCount = activeLeads.filter((x) => x.dealStatus === 'Won' || x.stage === 'Won').length
+  const lostCount = activeLeads.filter((x) => x.dealStatus === 'Lost').length
+  const totalDealValue = activeLeads.reduce((sum, x) => sum + Number(x.quoteAmount || 0), 0)
+  const totalWonValue = activeLeads
     .filter((x) => x.dealStatus === 'Won')
     .reduce((sum, x) => sum + Number(x.quoteAmount || 0), 0)
 
   const todayTasksCount = allTasks.filter(isTaskToday).length
   const overdueTasksCount = allTasks.filter(isTaskOverdue).length
   const doneTasksCount = allTasks.filter((t) => t.status === 'Done').length
+
+  const todayFollowups = activeLeads.filter((lead) => lead.nextFollowUpDate === todayString())
+  const overdueFollowups = activeLeads.filter(
+    (lead) => lead.nextFollowUpDate && lead.nextFollowUpDate < todayString() && lead.dealStatus !== 'Won'
+  )
+  const pendingProposalLeads = activeLeads.filter(
+    (lead) => lead.stage === 'Proposal' && lead.decisionStatus === 'Pending'
+  )
+
+  const conversionRate = total ? Math.round((wonCount / total) * 100) : 0
 
   const selectedClientPaymentsSummary = {
     quote: Number(selectedClient?.quoteAmount || 0),
@@ -926,40 +1026,42 @@ export default function App() {
           openAddPanel={() => setShowAddPanel(true)}
         />
 
-        <section className="saas-filters-panel">
-          <div className="saas-grid-4">
-            <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}>
-              <option value="All">{AR.allStages}</option>
-              {STAGES.map((stage) => (
-                <option key={stage} value={stage}>
-                  {stageLabel(stage)}
-                </option>
-              ))}
-            </select>
+        {currentPage !== 'archived' && (
+          <section className="saas-filters-panel">
+            <div className="saas-grid-4">
+              <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}>
+                <option value="All">{AR.allStages}</option>
+                {STAGES.map((stage) => (
+                  <option key={stage} value={stage}>
+                    {stageLabel(stage)}
+                  </option>
+                ))}
+              </select>
 
-            <select value={tempFilter} onChange={(e) => setTempFilter(e.target.value)}>
-              <option value="All">{AR.allTemps}</option>
-              {TEMPERATURES.map((temp) => (
-                <option key={temp} value={temp}>
-                  {tempLabel(temp)}
-                </option>
-              ))}
-            </select>
+              <select value={tempFilter} onChange={(e) => setTempFilter(e.target.value)}>
+                <option value="All">{AR.allTemps}</option>
+                {TEMPERATURES.map((temp) => (
+                  <option key={temp} value={temp}>
+                    {tempLabel(temp)}
+                  </option>
+                ))}
+              </select>
 
-            <select value={dealFilter} onChange={(e) => setDealFilter(e.target.value)}>
-              <option value="All">{AR.allDeals}</option>
-              {DEAL_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {dealLabel(status)}
-                </option>
-              ))}
-            </select>
+              <select value={dealFilter} onChange={(e) => setDealFilter(e.target.value)}>
+                <option value="All">{AR.allDeals}</option>
+                {DEAL_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {dealLabel(status)}
+                  </option>
+                ))}
+              </select>
 
-            <button className="primary-btn" onClick={exportCsv}>
-              ⬇️ تصدير CSV
-            </button>
-          </div>
-        </section>
+              <button className="primary-btn" onClick={exportCsv}>
+                ⬇️ تصدير CSV
+              </button>
+            </div>
+          </section>
+        )}
 
         {(currentPage === 'dashboard' || currentPage === 'clients') && (
           <>
@@ -977,8 +1079,83 @@ export default function App() {
               <StatCard title="✅ أرباح محققة" value={formatMoney(totalWonValue)} accent="green" />
               <StatCard title="📅 مهام اليوم" value={todayTasksCount} accent="gold" />
               <StatCard title="🚨 مهام متأخرة" value={overdueTasksCount} accent="red" />
-              <StatCard title="✔️ مهام مكتملة" value={doneTasksCount} accent="green" />
+              <StatCard title="📈 نسبة التحويل" value={`${conversionRate}%`} accent="violet" />
+              <StatCard title="📦 العملاء المؤرشفون" value={archivedLeads.length} accent="orange" />
             </section>
+
+            {currentPage === 'dashboard' && (
+              <section className="dashboard-grid">
+                <div className="saas-page-panel">
+                  <h2>متابعات اليوم</h2>
+                  <div className="list-block">
+                    {todayFollowups.length === 0 ? (
+                      <EmptyState text="لا توجد متابعات مجدولة اليوم" />
+                    ) : (
+                      todayFollowups.map((lead) => (
+                        <div key={lead.id} className="list-item highlight-today">
+                          <div><strong>{AR.company}:</strong> {lead.company}</div>
+                          <div><strong>{AR.service}:</strong> {lead.service || '-'}</div>
+                          <div><strong>{AR.stage}:</strong> {stageLabel(lead.stage)}</div>
+                          <div className="saas-inline-actions top-gap">
+                            <a
+                              href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="wa-btn"
+                            >
+                              {AR.whatsapp}
+                            </a>
+                            <button
+                              className="primary-btn small-btn"
+                              onClick={() => {
+                                setSelectedClient(lead)
+                                setActiveTab('overview')
+                              }}
+                            >
+                              فتح العميل
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="saas-page-panel">
+                  <h2>متابعات متأخرة</h2>
+                  <div className="list-block">
+                    {overdueFollowups.length === 0 ? (
+                      <EmptyState text="لا توجد متابعات متأخرة" />
+                    ) : (
+                      overdueFollowups.map((lead) => (
+                        <div key={lead.id} className="list-item highlight-overdue">
+                          <div><strong>{AR.company}:</strong> {lead.company}</div>
+                          <div><strong>{AR.followup}:</strong> {lead.nextFollowUpDate}</div>
+                          <div><strong>{AR.stage}:</strong> {stageLabel(lead.stage)}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="saas-page-panel">
+                  <h2>عروض بانتظار القرار</h2>
+                  <div className="list-block">
+                    {pendingProposalLeads.length === 0 ? (
+                      <EmptyState text="لا توجد عروض بانتظار القرار" />
+                    ) : (
+                      pendingProposalLeads.map((lead) => (
+                        <div key={lead.id} className="list-item">
+                          <div><strong>{AR.company}:</strong> {lead.company}</div>
+                          <div><strong>{AR.quote}:</strong> {formatMoney(lead.quoteAmount)} ريال</div>
+                          <div><strong>{AR.decisionStatus}:</strong> {decisionLabel(lead.decisionStatus)}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
 
             <section className="saas-board">
               {STAGES.map((stage) => (
@@ -994,7 +1171,7 @@ export default function App() {
                       .map((lead) => (
                         <div
                           key={lead.id}
-                          className="saas-lead-card"
+                          className={`saas-lead-card ${lead.temperature === 'Hot' ? 'lead-hot' : 'lead-warm'}`}
                           style={{ borderRightColor: lead.temperature === 'Hot' ? '#ef4444' : '#f59e0b' }}
                           onClick={() => {
                             setSelectedClient(lead)
@@ -1048,6 +1225,12 @@ export default function App() {
                                   </option>
                                 ))}
                               </select>
+                              <input
+                                value={lead.lostReason || ''}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => patchLeadLocal(lead.id, 'lostReason', e.target.value)}
+                                placeholder={AR.lostReason}
+                              />
 
                               <div className="saas-inline-actions">
                                 <button
@@ -1083,6 +1266,9 @@ export default function App() {
                               <div className="saas-lead-meta">{AR.quote}: {formatMoney(lead.quoteAmount)} ريال</div>
                               <div className="saas-lead-meta">{AR.paid}: {formatMoney(lead.paidAmount)} ريال</div>
                               <div className="saas-lead-meta">{AR.remaining}: {formatMoney(lead.remainingAmount)} ريال</div>
+                              {lead.dealStatus === 'Lost' && (
+                                <div className="saas-lead-meta">{AR.lostReason}: {lead.lostReason || '-'}</div>
+                              )}
                               <div className="saas-lead-small">📅 {formatDate(lead.createdAt)}</div>
                               <div className="saas-lead-small">📌 {AR.followup}: {lead.nextFollowUpDate || '-'}</div>
 
@@ -1111,10 +1297,10 @@ export default function App() {
                                   className="danger-btn small-btn"
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    deleteLead(lead.id)
+                                    archiveLead(lead.id)
                                   }}
                                 >
-                                  🗑️ {AR.delete}
+                                  📦 {AR.archive}
                                 </button>
                               </div>
                             </>
@@ -1235,7 +1421,7 @@ export default function App() {
                     ) : (
                       <>
                         <div><strong>{AR.company}:</strong> {task.clientName}</div>
-                        <div><strong>{AR.tasks.slice(0, -1)}:</strong> {task.title}</div>
+                        <div><strong>المهمة:</strong> {task.title}</div>
                         <div><strong>التاريخ:</strong> {task.dueDate}</div>
                         <div><strong>المسؤول:</strong> {task.owner}</div>
                         <div><strong>الحالة:</strong> {taskStatusLabel(task.status)}</div>
@@ -1283,6 +1469,39 @@ export default function App() {
               <InfoBox label="إجمالي قيمة الصفقات" value={`${formatMoney(totalDealValue)} ريال`} />
               <InfoBox label="إجمالي الصفقات المغلقة" value={wonCount} />
               <InfoBox label="إجمالي الصفقات الضائعة" value={lostCount} />
+              <InfoBox label="إجمالي المدفوع" value={`${formatMoney(activeLeads.reduce((s, x) => s + Number(x.paidAmount || 0), 0))} ريال`} />
+              <InfoBox label="إجمالي المتبقي" value={`${formatMoney(activeLeads.reduce((s, x) => s + Number(x.remainingAmount || 0), 0))} ريال`} />
+              <InfoBox label="نسبة التحويل" value={`${conversionRate}%`} />
+              <InfoBox label="عروض بانتظار القرار" value={pendingProposalLeads.length} />
+            </div>
+          </section>
+        )}
+
+        {currentPage === 'archived' && (
+          <section className="saas-page-panel">
+            <h2>{AR.archived}</h2>
+            <div className="list-block">
+              {filteredArchivedLeads.length === 0 ? (
+                <EmptyState text="لا يوجد عملاء مؤرشفون" />
+              ) : (
+                filteredArchivedLeads.map((lead) => (
+                  <div key={lead.id} className="list-item">
+                    <div><strong>{AR.company}:</strong> {lead.company}</div>
+                    <div><strong>{AR.phone}:</strong> {lead.phone}</div>
+                    <div><strong>{AR.service}:</strong> {lead.service || '-'}</div>
+                    <div><strong>{AR.dealStatus}:</strong> {dealLabel(lead.dealStatus)}</div>
+
+                    <div className="saas-inline-actions top-gap">
+                      <button className="primary-btn small-btn" onClick={() => restoreLead(lead.id)}>
+                        ♻️ {AR.restore}
+                      </button>
+                      <button className="danger-btn small-btn" onClick={() => deleteLead(lead.id)}>
+                        🗑️ حذف نهائي
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </section>
         )}
@@ -1381,6 +1600,18 @@ export default function App() {
                   </option>
                 ))}
               </select>
+
+              <select
+                value={newLead.lostReason}
+                onChange={(e) => setNewLead({ ...newLead, lostReason: e.target.value })}
+              >
+                <option value="">{AR.lostReason}</option>
+                {LOST_REASONS.map((reason) => (
+                  <option key={reason} value={reason}>
+                    {reason}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="drawer-footer">
@@ -1428,6 +1659,7 @@ export default function App() {
                   {tab === 'notes' && AR.notes}
                   {tab === 'files' && AR.files}
                   {tab === 'payments' && AR.payments}
+                  {tab === 'activity' && AR.activity}
                 </button>
               ))}
             </div>
@@ -1446,6 +1678,7 @@ export default function App() {
                 <InfoBox label={AR.quote} value={`${formatMoney(selectedClientPaymentsSummary.quote)} ريال`} />
                 <InfoBox label={AR.paid} value={`${formatMoney(selectedClientPaymentsSummary.paid)} ريال`} />
                 <InfoBox label={AR.remaining} value={`${formatMoney(selectedClientPaymentsSummary.remaining)} ريال`} />
+                <InfoBox label={AR.lostReason} value={selectedClient.lostReason || '-'} />
                 <InfoBox label="عدد المهام" value={clientTasks.length} />
                 <InfoBox label="عدد الملاحظات" value={clientNotes.length} />
                 <InfoBox label="عدد الملفات" value={clientFiles.length} />
@@ -1669,6 +1902,22 @@ export default function App() {
                   )}
                 </div>
               </>
+            )}
+
+            {activeTab === 'activity' && (
+              <div className="list-block">
+                {clientActivity.length === 0 ? (
+                  <EmptyState text="لا يوجد نشاط مسجل" />
+                ) : (
+                  clientActivity.map((item) => (
+                    <div key={item.id} className="list-item">
+                      <div><strong>{item.action}</strong></div>
+                      <div className="top-gap">{item.details || '-'}</div>
+                      <div className="meta-text">{formatDate(item.createdAt)}</div>
+                    </div>
+                  ))
+                )}
+              </div>
             )}
           </div>
         </div>
