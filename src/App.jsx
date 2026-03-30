@@ -34,6 +34,69 @@ const TASK_STATUSES = ['Pending', 'In Progress', 'Done']
 const PAYMENT_STATUSES = ['Pending', 'Paid', 'Partial']
 const TABS = ['overview', 'tasks', 'notes', 'files', 'payments']
 
+const AR = {
+  lead: 'عميل محتمل',
+  contacted: 'تم التواصل',
+  meeting: 'اجتماع',
+  proposal: 'عرض سعر',
+  won: 'مغلقة',
+
+  hot: 'حار',
+  warm: 'دافئ',
+
+  open: 'مفتوحة',
+  wonDeal: 'مغلقة - ربح',
+  lost: 'مغلقة - خسارة',
+
+  pending: 'معلقة',
+  inProgress: 'قيد التنفيذ',
+  done: 'مكتملة',
+
+  approved: 'موافق',
+  rejected: 'مرفوض',
+  noResponse: 'لا يوجد رد',
+
+  dashboard: 'لوحة التحكم',
+  clients: 'العملاء',
+  tasks: 'المهام',
+  reports: 'التقارير',
+  settings: 'الإعدادات',
+
+  addClient: 'إضافة عميل',
+  notes: 'الملاحظات',
+  files: 'الملفات',
+  payments: 'الدفعات',
+  overview: 'نظرة عامة',
+
+  company: 'اسم الشركة',
+  phone: 'رقم الجوال',
+  service: 'الخدمة',
+  quote: 'عرض السعر',
+  paid: 'المدفوع',
+  remaining: 'المتبقي',
+  followup: 'المتابعة القادمة',
+  createdAt: 'تاريخ التسجيل',
+  lastActivity: 'آخر نشاط',
+  expectedCloseDate: 'الإغلاق المتوقع',
+  dealStatus: 'حالة الصفقة',
+  decisionStatus: 'حالة القرار',
+  temperature: 'درجة العميل',
+  stage: 'المرحلة',
+
+  whatsapp: 'واتساب ذكي',
+  edit: 'تعديل',
+  delete: 'حذف',
+  save: 'حفظ',
+  cancel: 'إلغاء',
+  todayTasks: 'مهام اليوم',
+  overdueTasks: 'مهام متأخرة',
+  doneTasks: 'مهام مكتملة',
+  allTasks: 'كل المهام',
+  allStages: 'كل المراحل',
+  allTemps: 'كل الدرجات',
+  allDeals: 'كل حالات الصفقة'
+}
+
 const emptyLeadForm = {
   company: '',
   phone: '',
@@ -121,39 +184,46 @@ function taskStatusClass(task) {
   return ''
 }
 
-function dealLabel(status) {
-  if (status === 'Won') return 'مغلقة - ربح'
-  if (status === 'Lost') return 'مغلقة - خسارة'
-  return 'مفتوحة'
-}
-
-function decisionLabel(status) {
-  if (status === 'Approved') return 'موافق'
-  if (status === 'Rejected') return 'مرفوض'
-  if (status === 'No Response') return 'لا يوجد رد'
-  return 'بانتظار القرار'
-}
-
 function stageLabel(stage) {
-  if (stage === 'Lead') return 'عميل محتمل'
-  if (stage === 'Contacted') return 'تم التواصل'
-  if (stage === 'Meeting') return 'اجتماع'
-  if (stage === 'Proposal') return 'عرض سعر'
-  if (stage === 'Won') return 'مغلقة'
-  return stage
+  return {
+    Lead: AR.lead,
+    Contacted: AR.contacted,
+    Meeting: AR.meeting,
+    Proposal: AR.proposal,
+    Won: AR.won
+  }[stage] || stage
 }
 
 function tempLabel(temp) {
-  if (temp === 'Hot') return 'حار'
-  if (temp === 'Warm') return 'دافئ'
-  return temp
+  return {
+    Hot: AR.hot,
+    Warm: AR.warm
+  }[temp] || temp
+}
+
+function dealLabel(status) {
+  return {
+    Open: AR.open,
+    Won: AR.wonDeal,
+    Lost: AR.lost
+  }[status] || status
+}
+
+function decisionLabel(status) {
+  return {
+    Pending: AR.pending,
+    Approved: AR.approved,
+    Rejected: AR.rejected,
+    'No Response': AR.noResponse
+  }[status] || status
 }
 
 function taskStatusLabel(status) {
-  if (status === 'Pending') return 'معلقة'
-  if (status === 'In Progress') return 'قيد التنفيذ'
-  if (status === 'Done') return 'مكتملة'
-  return status
+  return {
+    Pending: AR.pending,
+    'In Progress': AR.inProgress,
+    Done: AR.done
+  }[status] || status
 }
 
 function paymentStatusLabel(status) {
@@ -215,11 +285,11 @@ function buildWhatsAppMessage(lead) {
 
 function Sidebar({ currentPage, setCurrentPage }) {
   const items = [
-    { key: 'dashboard', label: 'لوحة التحكم' },
-    { key: 'clients', label: 'العملاء' },
-    { key: 'tasks', label: 'المهام' },
-    { key: 'reports', label: 'التقارير' },
-    { key: 'settings', label: 'الإعدادات' }
+    { key: 'dashboard', label: AR.dashboard },
+    { key: 'clients', label: AR.clients },
+    { key: 'tasks', label: AR.tasks },
+    { key: 'reports', label: AR.reports },
+    { key: 'settings', label: AR.settings }
   ]
 
   return (
@@ -252,11 +322,11 @@ function Topbar({ searchTerm, setSearchTerm, openAddPanel, currentPage }) {
     <header className="saas-topbar">
       <div>
         <h1 className="saas-page-title">
-          {currentPage === 'dashboard' && 'لوحة التحكم'}
-          {currentPage === 'clients' && 'العملاء'}
-          {currentPage === 'tasks' && 'المهام'}
-          {currentPage === 'reports' && 'التقارير'}
-          {currentPage === 'settings' && 'الإعدادات'}
+          {currentPage === 'dashboard' && AR.dashboard}
+          {currentPage === 'clients' && AR.clients}
+          {currentPage === 'tasks' && AR.tasks}
+          {currentPage === 'reports' && AR.reports}
+          {currentPage === 'settings' && AR.settings}
         </h1>
         <p className="saas-page-subtitle">إدارة العملاء والصفقات والمتابعات | Client & Sales Management</p>
       </div>
@@ -269,7 +339,7 @@ function Topbar({ searchTerm, setSearchTerm, openAddPanel, currentPage }) {
           onChange={(e) => setSearchTerm(e.target.value)}
         />
         <button className="primary-btn" onClick={openAddPanel}>
-          + إضافة عميل
+          + {AR.addClient}
         </button>
       </div>
     </header>
@@ -743,51 +813,43 @@ export default function App() {
 
   function exportCsv() {
     const headers = [
-      'اسم الشركة / Company',
-      'رقم الجوال / Phone',
-      'الخدمة / Service',
-      'المرحلة / Stage',
-      'حالة الصفقة / Deal Status',
-      'حالة القرار / Decision Status',
-      'عرض السعر / Quote Amount',
-      'المدفوع / Paid Amount',
-      'المتبقي / Remaining Amount',
-      'تاريخ التسجيل / Created At',
-      'المتابعة القادمة / Next Follow-up'
+      'اسم الشركة',
+      'رقم الجوال',
+      'الخدمة',
+      'المرحلة',
+      'حالة الصفقة',
+      'حالة القرار',
+      'عرض السعر',
+      'المدفوع',
+      'المتبقي',
+      'تاريخ التسجيل'
     ]
 
     const rows = filteredLeads.map((lead) => [
-      lead.company || '',
-      lead.phone || '',
-      lead.service || '',
-      stageLabel(lead.stage || ''),
-      dealLabel(lead.dealStatus || ''),
-      decisionLabel(lead.decisionStatus || ''),
-      Number(lead.quoteAmount || 0),
-      Number(lead.paidAmount || 0),
-      Number(lead.remainingAmount || 0),
-      formatDate(lead.createdAt),
-      lead.nextFollowUpDate || ''
+      lead.company,
+      lead.phone,
+      lead.service,
+      stageLabel(lead.stage),
+      dealLabel(lead.dealStatus),
+      decisionLabel(lead.decisionStatus),
+      lead.quoteAmount,
+      lead.paidAmount,
+      lead.remainingAmount,
+      formatDate(lead.createdAt)
     ])
 
-    const csvContent = [headers, ...rows]
-      .map((row) =>
-        row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(',')
-      )
+    const csv = [headers, ...rows]
+      .map((row) => row.map((val) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))
       .join('\n')
 
-    const bom = '\uFEFF'
-    const blob = new Blob([bom + csvContent], {
+    const blob = new Blob(['\uFEFF' + csv], {
       type: 'text/csv;charset=utf-8;'
     })
 
-    const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', 'tamakan-crm-report.csv')
-    document.body.appendChild(link)
+    link.href = URL.createObjectURL(blob)
+    link.download = 'tamakan-report.csv'
     link.click()
-    document.body.removeChild(link)
   }
 
   const filteredLeads = useMemo(() => {
@@ -867,7 +929,7 @@ export default function App() {
         <section className="saas-filters-panel">
           <div className="saas-grid-4">
             <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}>
-              <option value="All">كل المراحل</option>
+              <option value="All">{AR.allStages}</option>
               {STAGES.map((stage) => (
                 <option key={stage} value={stage}>
                   {stageLabel(stage)}
@@ -876,7 +938,7 @@ export default function App() {
             </select>
 
             <select value={tempFilter} onChange={(e) => setTempFilter(e.target.value)}>
-              <option value="All">كل الدرجات</option>
+              <option value="All">{AR.allTemps}</option>
               {TEMPERATURES.map((temp) => (
                 <option key={temp} value={temp}>
                   {tempLabel(temp)}
@@ -885,7 +947,7 @@ export default function App() {
             </select>
 
             <select value={dealFilter} onChange={(e) => setDealFilter(e.target.value)}>
-              <option value="All">كل حالات الصفقة</option>
+              <option value="All">{AR.allDeals}</option>
               {DEAL_STATUSES.map((status) => (
                 <option key={status} value={status}>
                   {dealLabel(status)}
@@ -995,7 +1057,7 @@ export default function App() {
                                     updateLead(lead)
                                   }}
                                 >
-                                  💾 حفظ
+                                  💾 {AR.save}
                                 </button>
                                 <button
                                   className="danger-btn small-btn"
@@ -1004,7 +1066,7 @@ export default function App() {
                                     setEditingId(null)
                                   }}
                                 >
-                                  ✖
+                                  ✖ {AR.cancel}
                                 </button>
                               </div>
                             </>
@@ -1015,14 +1077,14 @@ export default function App() {
                                 <span className="saas-stage-chip">{stageLabel(lead.stage)}</span>
                               </div>
 
-                              <div className="saas-lead-meta">الخدمة: {lead.service || '-'}</div>
-                              <div className="saas-lead-meta">حالة الصفقة: {dealLabel(lead.dealStatus)}</div>
-                              <div className="saas-lead-meta">حالة القرار: {decisionLabel(lead.decisionStatus)}</div>
-                              <div className="saas-lead-meta">عرض السعر: {formatMoney(lead.quoteAmount)} ريال</div>
-                              <div className="saas-lead-meta">المدفوع: {formatMoney(lead.paidAmount)} ريال</div>
-                              <div className="saas-lead-meta">المتبقي: {formatMoney(lead.remainingAmount)} ريال</div>
+                              <div className="saas-lead-meta">{AR.service}: {lead.service || '-'}</div>
+                              <div className="saas-lead-meta">{AR.dealStatus}: {dealLabel(lead.dealStatus)}</div>
+                              <div className="saas-lead-meta">{AR.decisionStatus}: {decisionLabel(lead.decisionStatus)}</div>
+                              <div className="saas-lead-meta">{AR.quote}: {formatMoney(lead.quoteAmount)} ريال</div>
+                              <div className="saas-lead-meta">{AR.paid}: {formatMoney(lead.paidAmount)} ريال</div>
+                              <div className="saas-lead-meta">{AR.remaining}: {formatMoney(lead.remainingAmount)} ريال</div>
                               <div className="saas-lead-small">📅 {formatDate(lead.createdAt)}</div>
-                              <div className="saas-lead-small">📌 متابعة: {lead.nextFollowUpDate || '-'}</div>
+                              <div className="saas-lead-small">📌 {AR.followup}: {lead.nextFollowUpDate || '-'}</div>
 
                               <div className="saas-inline-actions">
                                 <a
@@ -1032,7 +1094,7 @@ export default function App() {
                                   onClick={(e) => e.stopPropagation()}
                                   className="wa-btn"
                                 >
-                                  واتساب ذكي
+                                  {AR.whatsapp}
                                 </a>
 
                                 <button
@@ -1042,7 +1104,7 @@ export default function App() {
                                     setEditingId(lead.id)
                                   }}
                                 >
-                                  ✏️
+                                  ✏️ {AR.edit}
                                 </button>
 
                                 <button
@@ -1052,7 +1114,7 @@ export default function App() {
                                     deleteLead(lead.id)
                                   }}
                                 >
-                                  🗑️
+                                  🗑️ {AR.delete}
                                 </button>
                               </div>
                             </>
@@ -1103,13 +1165,13 @@ export default function App() {
         {currentPage === 'tasks' && (
           <section className="saas-page-panel">
             <div className="tasks-page-header">
-              <h2>كل المهام والمتابعات</h2>
+              <h2>{AR.tasks}</h2>
               <div className="tasks-filter-row">
                 <select value={taskViewFilter} onChange={(e) => setTaskViewFilter(e.target.value)}>
-                  <option value="All">كل المهام</option>
-                  <option value="Today">مهام اليوم</option>
-                  <option value="Overdue">المهام المتأخرة</option>
-                  <option value="Done">المهام المكتملة</option>
+                  <option value="All">{AR.allTasks}</option>
+                  <option value="Today">{AR.todayTasks}</option>
+                  <option value="Overdue">{AR.overdueTasks}</option>
+                  <option value="Done">{AR.doneTasks}</option>
                 </select>
               </div>
             </div>
@@ -1152,7 +1214,7 @@ export default function App() {
 
                         <div className="saas-inline-actions top-gap">
                           <button className="primary-btn small-btn" onClick={() => saveEditedTask(task)}>
-                            💾 حفظ
+                            💾 {AR.save}
                           </button>
                           <button
                             className="danger-btn small-btn"
@@ -1166,14 +1228,14 @@ export default function App() {
                               })
                             }}
                           >
-                            إلغاء
+                            {AR.cancel}
                           </button>
                         </div>
                       </>
                     ) : (
                       <>
-                        <div><strong>العميل:</strong> {task.clientName}</div>
-                        <div><strong>المهمة:</strong> {task.title}</div>
+                        <div><strong>{AR.company}:</strong> {task.clientName}</div>
+                        <div><strong>{AR.tasks.slice(0, -1)}:</strong> {task.title}</div>
                         <div><strong>التاريخ:</strong> {task.dueDate}</div>
                         <div><strong>المسؤول:</strong> {task.owner}</div>
                         <div><strong>الحالة:</strong> {taskStatusLabel(task.status)}</div>
@@ -1194,14 +1256,14 @@ export default function App() {
                             className="primary-btn small-btn"
                             onClick={() => startEditTask(task)}
                           >
-                            ✏️ تعديل
+                            ✏️ {AR.edit}
                           </button>
 
                           <button
                             className="danger-btn small-btn"
                             onClick={() => deleteTask(task.id, task.clientId)}
                           >
-                            🗑️ حذف
+                            🗑️ {AR.delete}
                           </button>
                         </div>
                       </>
@@ -1215,7 +1277,7 @@ export default function App() {
 
         {currentPage === 'reports' && (
           <section className="saas-page-panel">
-            <h2>التقارير</h2>
+            <h2>{AR.reports}</h2>
             <div className="saas-grid-4">
               <InfoBox label="إجمالي العملاء" value={total} />
               <InfoBox label="إجمالي قيمة الصفقات" value={`${formatMoney(totalDealValue)} ريال`} />
@@ -1227,7 +1289,7 @@ export default function App() {
 
         {currentPage === 'settings' && (
           <section className="saas-page-panel">
-            <h2>الإعدادات</h2>
+            <h2>{AR.settings}</h2>
             <EmptyState text="هذه الصفحة جاهزة للتطوير لاحقًا" />
           </section>
         )}
@@ -1237,7 +1299,7 @@ export default function App() {
         <div className="drawer-overlay" onClick={() => setShowAddPanel(false)}>
           <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
             <div className="drawer-header">
-              <h2>إضافة عميل جديد</h2>
+              <h2>{AR.addClient}</h2>
               <button className="danger-btn small-btn" onClick={() => setShowAddPanel(false)}>
                 إغلاق
               </button>
@@ -1245,22 +1307,22 @@ export default function App() {
 
             <div className="saas-grid-2">
               <input
-                placeholder="اسم الشركة"
+                placeholder={AR.company}
                 value={newLead.company}
                 onChange={(e) => setNewLead({ ...newLead, company: e.target.value })}
               />
               <input
-                placeholder="رقم الجوال"
+                placeholder={AR.phone}
                 value={newLead.phone}
                 onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })}
               />
               <input
-                placeholder="الخدمة المطلوبة"
+                placeholder={AR.service}
                 value={newLead.service}
                 onChange={(e) => setNewLead({ ...newLead, service: e.target.value })}
               />
               <input
-                placeholder="عرض السعر"
+                placeholder={AR.quote}
                 type="number"
                 value={newLead.quoteAmount}
                 onChange={(e) => setNewLead({ ...newLead, quoteAmount: e.target.value })}
@@ -1323,7 +1385,7 @@ export default function App() {
 
             <div className="drawer-footer">
               <button className="primary-btn" onClick={addLead}>
-                + حفظ العميل
+                + {AR.save}
               </button>
             </div>
           </div>
@@ -1346,7 +1408,7 @@ export default function App() {
                   rel="noreferrer"
                   className="wa-btn"
                 >
-                  واتساب ذكي
+                  {AR.whatsapp}
                 </a>
                 <button className="danger-btn small-btn" onClick={() => setSelectedClient(null)}>
                   إغلاق
@@ -1361,29 +1423,29 @@ export default function App() {
                   className={activeTab === tab ? 'active' : ''}
                   onClick={() => setActiveTab(tab)}
                 >
-                  {tab === 'overview' && 'نظرة عامة'}
-                  {tab === 'tasks' && 'المهام'}
-                  {tab === 'notes' && 'الملاحظات'}
-                  {tab === 'files' && 'الملفات'}
-                  {tab === 'payments' && 'الدفعات'}
+                  {tab === 'overview' && AR.overview}
+                  {tab === 'tasks' && AR.tasks}
+                  {tab === 'notes' && AR.notes}
+                  {tab === 'files' && AR.files}
+                  {tab === 'payments' && AR.payments}
                 </button>
               ))}
             </div>
 
             {activeTab === 'overview' && (
               <div className="saas-grid-2">
-                <InfoBox label="رقم الجوال" value={selectedClient.phone} />
-                <InfoBox label="المرحلة" value={stageLabel(selectedClient.stage)} />
-                <InfoBox label="درجة العميل" value={tempLabel(selectedClient.temperature)} />
-                <InfoBox label="حالة الصفقة" value={dealLabel(selectedClient.dealStatus)} />
-                <InfoBox label="حالة القرار" value={decisionLabel(selectedClient.decisionStatus)} />
-                <InfoBox label="تاريخ التسجيل" value={formatDate(selectedClient.createdAt)} />
-                <InfoBox label="آخر نشاط" value={formatDate(selectedClient.lastActivityAt)} />
-                <InfoBox label="المتابعة القادمة" value={selectedClient.nextFollowUpDate || '-'} />
-                <InfoBox label="الإغلاق المتوقع" value={selectedClient.expectedCloseDate || '-'} />
-                <InfoBox label="عرض السعر" value={`${formatMoney(selectedClientPaymentsSummary.quote)} ريال`} />
-                <InfoBox label="المدفوع" value={`${formatMoney(selectedClientPaymentsSummary.paid)} ريال`} />
-                <InfoBox label="المتبقي" value={`${formatMoney(selectedClientPaymentsSummary.remaining)} ريال`} />
+                <InfoBox label={AR.phone} value={selectedClient.phone} />
+                <InfoBox label={AR.stage} value={stageLabel(selectedClient.stage)} />
+                <InfoBox label={AR.temperature} value={tempLabel(selectedClient.temperature)} />
+                <InfoBox label={AR.dealStatus} value={dealLabel(selectedClient.dealStatus)} />
+                <InfoBox label={AR.decisionStatus} value={decisionLabel(selectedClient.decisionStatus)} />
+                <InfoBox label={AR.createdAt} value={formatDate(selectedClient.createdAt)} />
+                <InfoBox label={AR.lastActivity} value={formatDate(selectedClient.lastActivityAt)} />
+                <InfoBox label={AR.followup} value={selectedClient.nextFollowUpDate || '-'} />
+                <InfoBox label={AR.expectedCloseDate} value={selectedClient.expectedCloseDate || '-'} />
+                <InfoBox label={AR.quote} value={`${formatMoney(selectedClientPaymentsSummary.quote)} ريال`} />
+                <InfoBox label={AR.paid} value={`${formatMoney(selectedClientPaymentsSummary.paid)} ريال`} />
+                <InfoBox label={AR.remaining} value={`${formatMoney(selectedClientPaymentsSummary.remaining)} ريال`} />
                 <InfoBox label="عدد المهام" value={clientTasks.length} />
                 <InfoBox label="عدد الملاحظات" value={clientNotes.length} />
                 <InfoBox label="عدد الملفات" value={clientFiles.length} />
@@ -1450,7 +1512,7 @@ export default function App() {
                           </select>
 
                           <button className="danger-btn small-btn" onClick={() => deleteTask(task.id)}>
-                            🗑️ حذف
+                            🗑️ {AR.delete}
                           </button>
                         </div>
                       </div>
@@ -1483,7 +1545,7 @@ export default function App() {
                         <div>{note.text}</div>
                         <div className="meta-text">{formatDate(note.createdAt)}</div>
                         <button className="danger-btn small-btn top-gap" onClick={() => deleteNote(note.id)}>
-                          🗑️ حذف
+                          🗑️ {AR.delete}
                         </button>
                       </div>
                     ))
@@ -1529,7 +1591,7 @@ export default function App() {
                         </div>
                         <div className="meta-text">{formatDate(file.createdAt)}</div>
                         <button className="danger-btn small-btn top-gap" onClick={() => deleteFile(file.id)}>
-                          🗑️ حذف
+                          🗑️ {AR.delete}
                         </button>
                       </div>
                     ))
@@ -1599,7 +1661,7 @@ export default function App() {
                           </select>
 
                           <button className="danger-btn small-btn" onClick={() => deletePayment(payment.id)}>
-                            🗑️ حذف
+                            🗑️ {AR.delete}
                           </button>
                         </div>
                       </div>
