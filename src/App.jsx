@@ -4,7 +4,6 @@ import { initializeApp } from 'firebase/app'
 import {
   getFirestore,
   collection,
-  collectionGroup,
   addDoc,
   deleteDoc,
   doc,
@@ -313,11 +312,19 @@ export default function App() {
   const [stageFilter, setStageFilter] = useState('All')
   const [tempFilter, setTempFilter] = useState('All')
   const [dealFilter, setDealFilter] = useState('All')
+  const [taskViewFilter, setTaskViewFilter] = useState('All')
 
   const [newLead, setNewLead] = useState(emptyLeadForm)
 
   const [clientTasks, setClientTasks] = useState([])
   const [allTasks, setAllTasks] = useState([])
+  const [editingTaskId, setEditingTaskId] = useState(null)
+  const [editingTaskData, setEditingTaskData] = useState({
+    title: '',
+    dueDate: '',
+    owner: '',
+    status: 'Pending'
+  })
   const [taskForm, setTaskForm] = useState(emptyTaskForm)
 
   const [clientNotes, setClientNotes] = useState([])
@@ -457,27 +464,46 @@ export default function App() {
   }, [selectedClient])
 
   useEffect(() => {
-    const q = query(collectionGroup(db, 'tasks'), orderBy('createdAt', 'desc'))
+    if (!leads.length) {
+      setAllTasks([])
+      return
+    }
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const tasksData = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data()
-        const pathParts = docSnap.ref.path.split('/')
-        const clientId = pathParts[1]
-        const client = leads.find((lead) => lead.id === clientId)
+    let isMounted = true
 
-        return {
-          id: docSnap.id,
-          clientId,
-          clientName: client?.company || 'عميل غير معروف',
-          ...data
+    async function loadAllTasks() {
+      try {
+        const tasksResults = await Promise.all(
+          leads.map(async (lead) => {
+            const tasksRef = collection(db, 'leads', lead.id, 'tasks')
+            const snapshot = await getDocs(tasksRef)
+
+            return snapshot.docs.map((docSnap) => ({
+              id: docSnap.id,
+              clientId: lead.id,
+              clientName: lead.company || 'عميل غير معروف',
+              ...docSnap.data()
+            }))
+          })
+        )
+
+        const mergedTasks = tasksResults
+          .flat()
+          .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+
+        if (isMounted) {
+          setAllTasks(mergedTasks)
         }
-      })
+      } catch (error) {
+        console.error('خطأ في تحميل كل المهام:', error)
+      }
+    }
 
-      setAllTasks(tasksData)
-    })
+    loadAllTasks()
 
-    return () => unsubscribe()
+    return () => {
+      isMounted = false
+    }
   }, [leads])
 
   async function touchClient(clientId, extra = {}) {
@@ -590,18 +616,52 @@ export default function App() {
 
     await touchClient(selectedClient.id)
     setTaskForm(emptyTaskForm)
+    setCurrentPage('tasks')
   }
 
-  async function updateTaskStatus(taskId, status) {
-    if (!selectedClient) return
-    await updateDoc(doc(db, 'leads', selectedClient.id, 'tasks', taskId), { status })
-    await touchClient(selectedClient.id)
+  function startEditTask(task) {
+    setEditingTaskId(task.id)
+    setEditingTaskData({
+      title: task.title || '',
+      dueDate: task.dueDate || '',
+      owner: task.owner || '',
+      status: task.status || 'Pending'
+    })
   }
 
-  async function deleteTask(taskId) {
-    if (!selectedClient) return
-    await deleteDoc(doc(db, 'leads', selectedClient.id, 'tasks', taskId))
-    await touchClient(selectedClient.id)
+  async function saveEditedTask(task) {
+    const clientId = task.clientId || selectedClient?.id
+    if (!clientId) return
+
+    await updateDoc(doc(db, 'leads', clientId, 'tasks', task.id), {
+      title: editingTaskData.title,
+      dueDate: editingTaskData.dueDate,
+      owner: editingTaskData.owner,
+      status: editingTaskData.status
+    })
+
+    await touchClient(clientId)
+    setEditingTaskId(null)
+    setEditingTaskData({
+      title: '',
+      dueDate: '',
+      owner: '',
+      status: 'Pending'
+    })
+  }
+
+  async function updateTaskStatus(taskId, status, clientIdOverride = null) {
+    const clientId = clientIdOverride || selectedClient?.id
+    if (!clientId) return
+    await updateDoc(doc(db, 'leads', clientId, 'tasks', taskId), { status })
+    await touchClient(clientId)
+  }
+
+  async function deleteTask(taskId, clientIdOverride = null) {
+    const clientId = clientIdOverride || selectedClient?.id
+    if (!clientId) return
+    await deleteDoc(doc(db, 'leads', clientId, 'tasks', taskId))
+    await touchClient(clientId)
   }
 
   async function addNote() {
@@ -749,6 +809,13 @@ export default function App() {
       return matchesSearch && matchesStage && matchesTemp && matchesDeal
     })
   }, [leads, searchTerm, stageFilter, tempFilter, dealFilter])
+
+  const filteredAllTasks = useMemo(() => {
+    if (taskViewFilter === 'Today') return allTasks.filter(isTaskToday)
+    if (taskViewFilter === 'Overdue') return allTasks.filter(isTaskOverdue)
+    if (taskViewFilter === 'Done') return allTasks.filter((task) => task.status === 'Done')
+    return allTasks
+  }, [allTasks, taskViewFilter])
 
   const total = leads.length
   const filteredTotal = filteredLeads.length
@@ -1035,18 +1102,110 @@ export default function App() {
 
         {currentPage === 'tasks' && (
           <section className="saas-page-panel">
-            <h2>كل المهام والمتابعات</h2>
+            <div className="tasks-page-header">
+              <h2>كل المهام والمتابعات</h2>
+              <div className="tasks-filter-row">
+                <select value={taskViewFilter} onChange={(e) => setTaskViewFilter(e.target.value)}>
+                  <option value="All">كل المهام</option>
+                  <option value="Today">مهام اليوم</option>
+                  <option value="Overdue">المهام المتأخرة</option>
+                  <option value="Done">المهام المكتملة</option>
+                </select>
+              </div>
+            </div>
+
             <div className="list-block">
-              {allTasks.length === 0 ? (
+              {filteredAllTasks.length === 0 ? (
                 <EmptyState text="لا توجد مهام مسجلة" />
               ) : (
-                allTasks.map((task) => (
+                filteredAllTasks.map((task) => (
                   <div key={task.id} className={`list-item ${taskStatusClass(task)}`}>
-                    <div><strong>العميل:</strong> {task.clientName}</div>
-                    <div><strong>المهمة:</strong> {task.title}</div>
-                    <div><strong>التاريخ:</strong> {task.dueDate}</div>
-                    <div><strong>المسؤول:</strong> {task.owner}</div>
-                    <div><strong>الحالة:</strong> {taskStatusLabel(task.status)}</div>
+                    {editingTaskId === task.id ? (
+                      <>
+                        <div className="saas-grid-4">
+                          <input
+                            value={editingTaskData.title}
+                            onChange={(e) => setEditingTaskData({ ...editingTaskData, title: e.target.value })}
+                            placeholder="اسم المهمة"
+                          />
+                          <input
+                            type="date"
+                            value={editingTaskData.dueDate}
+                            onChange={(e) => setEditingTaskData({ ...editingTaskData, dueDate: e.target.value })}
+                          />
+                          <input
+                            value={editingTaskData.owner}
+                            onChange={(e) => setEditingTaskData({ ...editingTaskData, owner: e.target.value })}
+                            placeholder="المسؤول"
+                          />
+                          <select
+                            value={editingTaskData.status}
+                            onChange={(e) => setEditingTaskData({ ...editingTaskData, status: e.target.value })}
+                          >
+                            {TASK_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {taskStatusLabel(status)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="saas-inline-actions top-gap">
+                          <button className="primary-btn small-btn" onClick={() => saveEditedTask(task)}>
+                            💾 حفظ
+                          </button>
+                          <button
+                            className="danger-btn small-btn"
+                            onClick={() => {
+                              setEditingTaskId(null)
+                              setEditingTaskData({
+                                title: '',
+                                dueDate: '',
+                                owner: '',
+                                status: 'Pending'
+                              })
+                            }}
+                          >
+                            إلغاء
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div><strong>العميل:</strong> {task.clientName}</div>
+                        <div><strong>المهمة:</strong> {task.title}</div>
+                        <div><strong>التاريخ:</strong> {task.dueDate}</div>
+                        <div><strong>المسؤول:</strong> {task.owner}</div>
+                        <div><strong>الحالة:</strong> {taskStatusLabel(task.status)}</div>
+
+                        <div className="saas-inline-actions top-gap">
+                          <select
+                            value={task.status}
+                            onChange={(e) => updateTaskStatus(task.id, e.target.value, task.clientId)}
+                          >
+                            {TASK_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {taskStatusLabel(status)}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            className="primary-btn small-btn"
+                            onClick={() => startEditTask(task)}
+                          >
+                            ✏️ تعديل
+                          </button>
+
+                          <button
+                            className="danger-btn small-btn"
+                            onClick={() => deleteTask(task.id, task.clientId)}
+                          >
+                            🗑️ حذف
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))
               )}
