@@ -41,6 +41,14 @@ const LOST_REASONS = [
   'سبب آخر'
 ]
 const TABS = ['overview', 'tasks', 'notes', 'files', 'payments', 'activity']
+const DEFAULT_SETTINGS = {
+  companyName: 'Tamakan CRM',
+  currency: 'ريال',
+  vatPercent: '15',
+  defaultTaskOwner: '',
+  whatsappSignature: 'مع تحيات فريق المبيعات',
+  notificationsEnabled: true
+}
 
 const AR = {
   lead: 'عميل محتمل',
@@ -164,6 +172,10 @@ const sampleLead = {
   nextFollowUpDate: '',
   lostReason: '',
   archived: false,
+  ownerName: 'مدير المبيعات',
+  source: 'Manual',
+  priority: 'Medium',
+  tags: [],
   lastActivityAt: Date.now(),
   createdAt: Date.now()
 }
@@ -253,22 +265,43 @@ function paymentStatusLabel(status) {
   return status
 }
 
-function buildWhatsAppMessage(lead) {
+function loadLocalSettings() {
+  try {
+    const raw = localStorage.getItem('tamakan-crm-settings')
+    if (!raw) return DEFAULT_SETTINGS
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
+  } catch {
+    return DEFAULT_SETTINGS
+  }
+}
+
+function loadReadNotifications() {
+  try {
+    return JSON.parse(localStorage.getItem('tamakan-read-notifications') || '[]')
+  } catch {
+    return []
+  }
+}
+
+function buildWhatsAppMessage(lead, settings) {
   const company = lead.company || 'العميل'
   const service = lead.service || 'الخدمة المطلوبة'
   const quote = Number(lead.quoteAmount || 0)
   const paid = Number(lead.paidAmount || 0)
   const remaining = Number(lead.remainingAmount || 0)
+  const currency = settings?.currency || 'ريال'
+  const signature = settings?.whatsappSignature?.trim()
 
   let text = `السلام عليكم ${company}\n\n`
 
   if (lead.dealStatus === 'Won') {
     text += `نشكركم على ثقتكم.\n`
     text += `الخدمة: ${service}\n`
-    text += `قيمة عرض السعر: ${formatMoney(quote)} ريال\n`
-    text += `المدفوع: ${formatMoney(paid)} ريال\n`
-    text += `المتبقي: ${formatMoney(remaining)} ريال\n\n`
+    text += `قيمة عرض السعر: ${formatMoney(quote)} ${currency}\n`
+    text += `المدفوع: ${formatMoney(paid)} ${currency}\n`
+    text += `المتبقي: ${formatMoney(remaining)} ${currency}\n\n`
     text += `يسعدنا متابعة بقية الإجراءات معكم.`
+    if (signature) text += `\n\n${signature}`
     return encodeURIComponent(text)
   }
 
@@ -276,35 +309,39 @@ function buildWhatsAppMessage(lead) {
     text += `نشكر لكم وقتكم.\n`
     if (lead.lostReason) text += `سبب عدم الإغلاق: ${lead.lostReason}\n`
     text += `إذا رغبتم بإعادة فتح النقاش بخصوص ${service} فنحن جاهزون لخدمتكم.`
+    if (signature) text += `\n\n${signature}`
     return encodeURIComponent(text)
   }
 
   if (lead.stage === 'Proposal' || lead.decisionStatus === 'Pending') {
     text += `نود متابعتكم بخصوص عرض السعر الخاص بخدمة ${service}.\n`
-    text += `قيمة العرض: ${formatMoney(quote)} ريال.\n`
+    text += `قيمة العرض: ${formatMoney(quote)} ${currency}.\n`
     text += `حالة القرار الحالية: ${decisionLabel(lead.decisionStatus)}.\n\n`
     text += `في حال رغبتكم بإكمال الإجراءات أو لديكم أي استفسار، نحن جاهزون لخدمتكم.`
+    if (signature) text += `\n\n${signature}`
     return encodeURIComponent(text)
   }
 
   if (lead.decisionStatus === 'No Response') {
     text += `نود التذكير بخصوص عرض السعر لخدمة ${service}.\n`
-    text += `قيمة العرض: ${formatMoney(quote)} ريال.\n\n`
+    text += `قيمة العرض: ${formatMoney(quote)} ${currency}.\n\n`
     text += `يسعدنا استكمال الخطوات معكم عند جاهزيتكم.`
+    if (signature) text += `\n\n${signature}`
     return encodeURIComponent(text)
   }
 
   text += `هذه متابعة بخصوص طلبكم لخدمة ${service}.\n`
   text += `المرحلة الحالية: ${stageLabel(lead.stage)}\n`
   text += `حالة الصفقة: ${dealLabel(lead.dealStatus)}\n`
-  text += `عرض السعر: ${formatMoney(quote)} ريال\n`
-  text += `المدفوع: ${formatMoney(paid)} ريال\n`
-  text += `المتبقي: ${formatMoney(remaining)} ريال\n\n`
+  text += `عرض السعر: ${formatMoney(quote)} ${currency}\n`
+  text += `المدفوع: ${formatMoney(paid)} ${currency}\n`
+  text += `المتبقي: ${formatMoney(remaining)} ${currency}\n\n`
   text += `يسعدنا خدمتكم ومتابعة الطلب معكم.`
+  if (signature) text += `\n\n${signature}`
   return encodeURIComponent(text)
 }
 
-function Sidebar({ currentPage, setCurrentPage }) {
+function Sidebar({ currentPage, setCurrentPage, settings }) {
   const items = [
     { key: 'dashboard', label: AR.dashboard },
     { key: 'clients', label: AR.clients },
@@ -319,7 +356,7 @@ function Sidebar({ currentPage, setCurrentPage }) {
       <div className="saas-brand">
         <div className="saas-brand-badge">T</div>
         <div>
-          <div className="saas-brand-title">Tamakan CRM</div>
+          <div className="saas-brand-title">{settings.companyName || 'Tamakan CRM'}</div>
           <div className="saas-brand-subtitle">Sales SaaS</div>
         </div>
       </div>
@@ -346,7 +383,9 @@ function Topbar({
   currentPage,
   theme,
   toggleTheme,
-  showNextDevelopment
+  showNextDevelopment,
+  unreadNotificationsCount,
+  openNotifications
 }) {
   return (
     <header className="saas-topbar">
@@ -369,6 +408,11 @@ function Topbar({
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
+
+        <button className="secondary-btn notification-btn" onClick={openNotifications}>
+          🔔 الإشعارات
+          {unreadNotificationsCount > 0 && <span className="notification-badge">{unreadNotificationsCount}</span>}
+        </button>
 
         <button className="secondary-btn" onClick={toggleTheme}>
           {theme === 'dark' ? `☀️ ${AR.lightMode}` : `🌙 ${AR.darkMode}`}
@@ -449,10 +493,22 @@ export default function App() {
 
   const [clientActivity, setClientActivity] = useState([])
 
+  const [settings, setSettings] = useState(loadLocalSettings())
+  const [showNotificationsPanel, setShowNotificationsPanel] = useState(false)
+  const [readNotifications, setReadNotifications] = useState(loadReadNotifications())
+
   useEffect(() => {
     document.body.setAttribute('data-theme', theme)
     localStorage.setItem('tamakan-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    localStorage.setItem('tamakan-crm-settings', JSON.stringify(settings))
+  }, [settings])
+
+  useEffect(() => {
+    localStorage.setItem('tamakan-read-notifications', JSON.stringify(readNotifications))
+  }, [readNotifications])
 
   function toggleTheme() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
@@ -464,8 +520,9 @@ export default function App() {
       '1) صلاحيات المستخدمين\n' +
       '2) رفع ملفات حقيقي\n' +
       '3) إشعارات داخل النظام\n' +
-      '4) ربط واتساب احترافي\n' +
-      '5) تقارير أذكى لكل موظف'
+      '4) ربط واتساب احترافي API\n' +
+      '5) تقارير أذكى لكل موظف\n' +
+      '6) Login وربط مستخدمين'
     )
   }
 
@@ -474,7 +531,6 @@ export default function App() {
       const leadsRef = collection(db, 'leads')
       const snapshot = await getDocs(leadsRef)
       if (!snapshot.empty) return
-
       await addDoc(leadsRef, sampleLead)
     }
 
@@ -663,6 +719,10 @@ export default function App() {
       nextFollowUpDate: newLead.nextFollowUpDate || '',
       lostReason: newLead.lostReason || '',
       archived: false,
+      ownerName: settings.defaultTaskOwner || '',
+      source: 'Manual',
+      priority: 'Medium',
+      tags: [],
       lastActivityAt: Date.now(),
       createdAt: Date.now()
     })
@@ -734,7 +794,9 @@ export default function App() {
 
   async function addTask() {
     if (!selectedClient) return
-    if (!taskForm.title || !taskForm.dueDate || !taskForm.owner) {
+    const ownerToUse = taskForm.owner || settings.defaultTaskOwner
+
+    if (!taskForm.title || !taskForm.dueDate || !ownerToUse) {
       alert('أكمل بيانات المهمة')
       return
     }
@@ -742,14 +804,17 @@ export default function App() {
     await addDoc(collection(db, 'leads', selectedClient.id, 'tasks'), {
       title: taskForm.title,
       dueDate: taskForm.dueDate,
-      owner: taskForm.owner,
+      owner: ownerToUse,
       status: taskForm.status,
       createdAt: Date.now()
     })
 
     await touchClient(selectedClient.id)
     await logActivity(selectedClient.id, 'إضافة مهمة', `تمت إضافة مهمة: ${taskForm.title}`)
-    setTaskForm(emptyTaskForm)
+    setTaskForm({
+      ...emptyTaskForm,
+      owner: settings.defaultTaskOwner || ''
+    })
     setCurrentPage('tasks')
   }
 
@@ -867,7 +932,7 @@ export default function App() {
     await logActivity(
       selectedClient.id,
       'إضافة دفعة',
-      `دفعة: ${paymentForm.title} - ${paymentForm.amount} ريال`
+      `دفعة: ${paymentForm.title} - ${paymentForm.amount} ${settings.currency}`
     )
     await recalcPayments(selectedClient.id)
     setPaymentForm(emptyPaymentForm)
@@ -1010,10 +1075,123 @@ export default function App() {
     remaining: Number(selectedClient?.remainingAmount || 0)
   }
 
+  const reportByStage = useMemo(() => {
+    return STAGES.map((stage) => ({
+      stage,
+      count: activeLeads.filter((lead) => lead.stage === stage).length,
+      value: activeLeads
+        .filter((lead) => lead.stage === stage)
+        .reduce((sum, lead) => sum + Number(lead.quoteAmount || 0), 0)
+    }))
+  }, [activeLeads])
+
+  const reportByDecision = useMemo(() => {
+    return DECISION_STATUSES.map((status) => ({
+      status,
+      count: activeLeads.filter((lead) => lead.decisionStatus === status).length
+    }))
+  }, [activeLeads])
+
+  const notifications = useMemo(() => {
+    if (!settings.notificationsEnabled) return []
+
+    const items = []
+
+    allTasks.forEach((task) => {
+      if (isTaskOverdue(task)) {
+        items.push({
+          id: `task-overdue-${task.clientId}-${task.id}`,
+          type: 'danger',
+          title: 'مهمة متأخرة',
+          text: `${task.title} - ${task.clientName}`,
+          date: task.dueDate || '',
+          clientId: task.clientId
+        })
+      } else if (isTaskToday(task)) {
+        items.push({
+          id: `task-today-${task.clientId}-${task.id}`,
+          type: 'warning',
+          title: 'مهمة اليوم',
+          text: `${task.title} - ${task.clientName}`,
+          date: task.dueDate || '',
+          clientId: task.clientId
+        })
+      }
+    })
+
+    activeLeads.forEach((lead) => {
+      if (lead.nextFollowUpDate && lead.nextFollowUpDate < todayString() && lead.dealStatus !== 'Won') {
+        items.push({
+          id: `lead-overdue-followup-${lead.id}`,
+          type: 'danger',
+          title: 'متابعة متأخرة',
+          text: `${lead.company} - ${lead.service || 'بدون خدمة'}`,
+          date: lead.nextFollowUpDate,
+          clientId: lead.id
+        })
+      } else if (lead.nextFollowUpDate === todayString()) {
+        items.push({
+          id: `lead-today-followup-${lead.id}`,
+          type: 'warning',
+          title: 'متابعة اليوم',
+          text: `${lead.company} - ${lead.service || 'بدون خدمة'}`,
+          date: lead.nextFollowUpDate,
+          clientId: lead.id
+        })
+      }
+
+      if (lead.stage === 'Proposal' && lead.decisionStatus === 'Pending') {
+        items.push({
+          id: `proposal-pending-${lead.id}`,
+          type: 'info',
+          title: 'عرض بانتظار القرار',
+          text: `${lead.company} - ${formatMoney(lead.quoteAmount)} ${settings.currency}`,
+          date: lead.expectedCloseDate || '',
+          clientId: lead.id
+        })
+      }
+    })
+
+    return items.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+  }, [allTasks, activeLeads, settings])
+
+  const unreadNotificationsCount = notifications.filter((item) => !readNotifications.includes(item.id)).length
+
+  function markAllNotificationsAsRead() {
+    const ids = notifications.map((item) => item.id)
+    setReadNotifications(Array.from(new Set([...readNotifications, ...ids])))
+  }
+
+  function markNotificationAsRead(id) {
+    if (readNotifications.includes(id)) return
+    setReadNotifications((prev) => [...prev, id])
+  }
+
+  function openClientFromNotification(notification) {
+    const client = activeLeads.find((lead) => lead.id === notification.clientId) || leads.find((lead) => lead.id === notification.clientId)
+    if (client) {
+      setSelectedClient(client)
+      setActiveTab('overview')
+      markNotificationAsRead(notification.id)
+      setShowNotificationsPanel(false)
+    }
+  }
+
+  function saveSettings() {
+    localStorage.setItem('tamakan-crm-settings', JSON.stringify(settings))
+    alert('تم حفظ الإعدادات بنجاح')
+  }
+
+  function resetSettings() {
+    setSettings(DEFAULT_SETTINGS)
+    localStorage.setItem('tamakan-crm-settings', JSON.stringify(DEFAULT_SETTINGS))
+    alert('تمت إعادة الإعدادات الافتراضية')
+  }
+
   if (loading) {
     return (
       <div className="saas-shell">
-        <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+        <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} settings={settings} />
         <main className="saas-main">
           <div className="loading-box">جاري تحميل البيانات...</div>
         </main>
@@ -1023,7 +1201,7 @@ export default function App() {
 
   return (
     <div className="saas-shell" dir="rtl">
-      <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} settings={settings} />
 
       <main className="saas-main">
         <Topbar
@@ -1034,6 +1212,8 @@ export default function App() {
           theme={theme}
           toggleTheme={toggleTheme}
           showNextDevelopment={showNextDevelopment}
+          unreadNotificationsCount={unreadNotificationsCount}
+          openNotifications={() => setShowNotificationsPanel(true)}
         />
 
         {currentPage !== 'archived' && (
@@ -1085,8 +1265,8 @@ export default function App() {
               <StatCard title="📄 عروض أسعار" value={proposalCount} accent="cyan" />
               <StatCard title="💰 صفقات مغلقة" value={wonCount} accent="green" />
               <StatCard title="❌ صفقات مفقودة" value={lostCount} accent="red" />
-              <StatCard title="💵 قيمة الصفقات" value={formatMoney(totalDealValue)} accent="blue" />
-              <StatCard title="✅ أرباح محققة" value={formatMoney(totalWonValue)} accent="green" />
+              <StatCard title={`💵 قيمة الصفقات (${settings.currency})`} value={formatMoney(totalDealValue)} accent="blue" />
+              <StatCard title={`✅ أرباح محققة (${settings.currency})`} value={formatMoney(totalWonValue)} accent="green" />
               <StatCard title="📅 مهام اليوم" value={todayTasksCount} accent="gold" />
               <StatCard title="🚨 مهام متأخرة" value={overdueTasksCount} accent="red" />
               <StatCard title="📈 نسبة التحويل" value={`${conversionRate}%`} accent="violet" />
@@ -1108,7 +1288,7 @@ export default function App() {
                           <div><strong>{AR.stage}:</strong> {stageLabel(lead.stage)}</div>
                           <div className="saas-inline-actions top-gap">
                             <a
-                              href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead)}`}
+                              href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead, settings)}`}
                               target="_blank"
                               rel="noreferrer"
                               className="wa-btn"
@@ -1142,6 +1322,17 @@ export default function App() {
                           <div><strong>{AR.company}:</strong> {lead.company}</div>
                           <div><strong>{AR.followup}:</strong> {lead.nextFollowUpDate}</div>
                           <div><strong>{AR.stage}:</strong> {stageLabel(lead.stage)}</div>
+                          <div className="saas-inline-actions top-gap">
+                            <button
+                              className="primary-btn small-btn"
+                              onClick={() => {
+                                setSelectedClient(lead)
+                                setActiveTab('overview')
+                              }}
+                            >
+                              فتح العميل
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}
@@ -1157,7 +1348,7 @@ export default function App() {
                       pendingProposalLeads.map((lead) => (
                         <div key={lead.id} className="list-item">
                           <div><strong>{AR.company}:</strong> {lead.company}</div>
-                          <div><strong>{AR.quote}:</strong> {formatMoney(lead.quoteAmount)} ريال</div>
+                          <div><strong>{AR.quote}:</strong> {formatMoney(lead.quoteAmount)} {settings.currency}</div>
                           <div><strong>{AR.decisionStatus}:</strong> {decisionLabel(lead.decisionStatus)}</div>
                         </div>
                       ))
@@ -1273,9 +1464,9 @@ export default function App() {
                               <div className="saas-lead-meta">{AR.service}: {lead.service || '-'}</div>
                               <div className="saas-lead-meta">{AR.dealStatus}: {dealLabel(lead.dealStatus)}</div>
                               <div className="saas-lead-meta">{AR.decisionStatus}: {decisionLabel(lead.decisionStatus)}</div>
-                              <div className="saas-lead-meta">{AR.quote}: {formatMoney(lead.quoteAmount)} ريال</div>
-                              <div className="saas-lead-meta">{AR.paid}: {formatMoney(lead.paidAmount)} ريال</div>
-                              <div className="saas-lead-meta">{AR.remaining}: {formatMoney(lead.remainingAmount)} ريال</div>
+                              <div className="saas-lead-meta">{AR.quote}: {formatMoney(lead.quoteAmount)} {settings.currency}</div>
+                              <div className="saas-lead-meta">{AR.paid}: {formatMoney(lead.paidAmount)} {settings.currency}</div>
+                              <div className="saas-lead-meta">{AR.remaining}: {formatMoney(lead.remainingAmount)} {settings.currency}</div>
                               {lead.dealStatus === 'Lost' && (
                                 <div className="saas-lead-meta">{AR.lostReason}: {lead.lostReason || '-'}</div>
                               )}
@@ -1284,7 +1475,7 @@ export default function App() {
 
                               <div className="saas-inline-actions">
                                 <a
-                                  href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead)}`}
+                                  href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead, settings)}`}
                                   target="_blank"
                                   rel="noreferrer"
                                   onClick={(e) => e.stopPropagation()}
@@ -1474,15 +1665,61 @@ export default function App() {
         {currentPage === 'reports' && (
           <section className="saas-page-panel">
             <h2>{AR.reports}</h2>
+
             <div className="saas-grid-4">
               <InfoBox label="إجمالي العملاء" value={total} />
-              <InfoBox label="إجمالي قيمة الصفقات" value={`${formatMoney(totalDealValue)} ريال`} />
+              <InfoBox label="إجمالي قيمة الصفقات" value={`${formatMoney(totalDealValue)} ${settings.currency}`} />
               <InfoBox label="إجمالي الصفقات المغلقة" value={wonCount} />
               <InfoBox label="إجمالي الصفقات الضائعة" value={lostCount} />
-              <InfoBox label="إجمالي المدفوع" value={`${formatMoney(activeLeads.reduce((s, x) => s + Number(x.paidAmount || 0), 0))} ريال`} />
-              <InfoBox label="إجمالي المتبقي" value={`${formatMoney(activeLeads.reduce((s, x) => s + Number(x.remainingAmount || 0), 0))} ريال`} />
+              <InfoBox label="إجمالي المدفوع" value={`${formatMoney(activeLeads.reduce((s, x) => s + Number(x.paidAmount || 0), 0))} ${settings.currency}`} />
+              <InfoBox label="إجمالي المتبقي" value={`${formatMoney(activeLeads.reduce((s, x) => s + Number(x.remainingAmount || 0), 0))} ${settings.currency}`} />
               <InfoBox label="نسبة التحويل" value={`${conversionRate}%`} />
               <InfoBox label="عروض بانتظار القرار" value={pendingProposalLeads.length} />
+            </div>
+
+            <div className="dashboard-grid top-gap">
+              <div className="saas-page-panel">
+                <h2>تقرير المراحل</h2>
+                <div className="list-block">
+                  {reportByStage.map((item) => (
+                    <div key={item.stage} className="list-item report-row">
+                      <div><strong>{stageLabel(item.stage)}</strong></div>
+                      <div>العدد: {item.count}</div>
+                      <div>القيمة: {formatMoney(item.value)} {settings.currency}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="saas-page-panel">
+                <h2>تقرير حالات القرار</h2>
+                <div className="list-block">
+                  {reportByDecision.map((item) => (
+                    <div key={item.status} className="list-item report-row">
+                      <div><strong>{decisionLabel(item.status)}</strong></div>
+                      <div>العدد: {item.count}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="saas-page-panel">
+                <h2>ملخص المهام</h2>
+                <div className="list-block">
+                  <div className="list-item report-row">
+                    <div><strong>{AR.todayTasks}</strong></div>
+                    <div>{todayTasksCount}</div>
+                  </div>
+                  <div className="list-item report-row">
+                    <div><strong>{AR.overdueTasks}</strong></div>
+                    <div>{overdueTasksCount}</div>
+                  </div>
+                  <div className="list-item report-row">
+                    <div><strong>{AR.doneTasks}</strong></div>
+                    <div>{doneTasksCount}</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
         )}
@@ -1519,7 +1756,82 @@ export default function App() {
         {currentPage === 'settings' && (
           <section className="saas-page-panel">
             <h2>{AR.settings}</h2>
-            <EmptyState text="هذه الصفحة جاهزة للتطوير لاحقًا" />
+
+            <div className="saas-grid-2">
+              <div className="info-box">
+                <div className="info-box-label">اسم النظام / الشركة</div>
+                <input
+                  value={settings.companyName}
+                  onChange={(e) => setSettings({ ...settings, companyName: e.target.value })}
+                  placeholder="اسم الشركة"
+                />
+              </div>
+
+              <div className="info-box">
+                <div className="info-box-label">العملة</div>
+                <input
+                  value={settings.currency}
+                  onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
+                  placeholder="ريال"
+                />
+              </div>
+
+              <div className="info-box">
+                <div className="info-box-label">نسبة الضريبة %</div>
+                <input
+                  type="number"
+                  value={settings.vatPercent}
+                  onChange={(e) => setSettings({ ...settings, vatPercent: e.target.value })}
+                  placeholder="15"
+                />
+              </div>
+
+              <div className="info-box">
+                <div className="info-box-label">المسؤول الافتراضي للمهام</div>
+                <input
+                  value={settings.defaultTaskOwner}
+                  onChange={(e) => setSettings({ ...settings, defaultTaskOwner: e.target.value })}
+                  placeholder="مثال: مدير المبيعات"
+                />
+              </div>
+
+              <div className="info-box full-span">
+                <div className="info-box-label">توقيع واتساب الذكي</div>
+                <textarea
+                  rows="4"
+                  value={settings.whatsappSignature}
+                  onChange={(e) => setSettings({ ...settings, whatsappSignature: e.target.value })}
+                  placeholder="مع تحيات فريق المبيعات"
+                />
+              </div>
+
+              <div className="info-box full-span">
+                <div className="toggle-row">
+                  <div>
+                    <div className="info-box-label">الإشعارات داخل النظام</div>
+                    <div className="muted-text">تفعيل تنبيهات المتابعات والمهام المتأخرة واليوم</div>
+                  </div>
+
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={settings.notificationsEnabled}
+                      onChange={(e) => setSettings({ ...settings, notificationsEnabled: e.target.checked })}
+                    />
+                    <span className="slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="saas-inline-actions top-gap">
+              <button className="primary-btn" onClick={saveSettings}>
+                💾 حفظ الإعدادات
+              </button>
+              <button className="secondary-btn" onClick={resetSettings}>
+                إعادة الافتراضي
+              </button>
+            </div>
           </section>
         )}
       </main>
@@ -1644,7 +1956,7 @@ export default function App() {
 
               <div className="saas-inline-actions">
                 <a
-                  href={`https://wa.me/${selectedClient.phone}?text=${buildWhatsAppMessage(selectedClient)}`}
+                  href={`https://wa.me/${selectedClient.phone}?text=${buildWhatsAppMessage(selectedClient, settings)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="wa-btn"
@@ -1685,9 +1997,9 @@ export default function App() {
                 <InfoBox label={AR.lastActivity} value={formatDate(selectedClient.lastActivityAt)} />
                 <InfoBox label={AR.followup} value={selectedClient.nextFollowUpDate || '-'} />
                 <InfoBox label={AR.expectedCloseDate} value={selectedClient.expectedCloseDate || '-'} />
-                <InfoBox label={AR.quote} value={`${formatMoney(selectedClientPaymentsSummary.quote)} ريال`} />
-                <InfoBox label={AR.paid} value={`${formatMoney(selectedClientPaymentsSummary.paid)} ريال`} />
-                <InfoBox label={AR.remaining} value={`${formatMoney(selectedClientPaymentsSummary.remaining)} ريال`} />
+                <InfoBox label={AR.quote} value={`${formatMoney(selectedClientPaymentsSummary.quote)} ${settings.currency}`} />
+                <InfoBox label={AR.paid} value={`${formatMoney(selectedClientPaymentsSummary.paid)} ${settings.currency}`} />
+                <InfoBox label={AR.remaining} value={`${formatMoney(selectedClientPaymentsSummary.remaining)} ${settings.currency}`} />
                 <InfoBox label={AR.lostReason} value={selectedClient.lostReason || '-'} />
                 <InfoBox label="عدد المهام" value={clientTasks.length} />
                 <InfoBox label="عدد الملاحظات" value={clientNotes.length} />
@@ -1887,7 +2199,7 @@ export default function App() {
                     clientPayments.map((payment) => (
                       <div key={payment.id} className="list-item">
                         <div><strong>اسم الدفعة:</strong> {payment.title}</div>
-                        <div><strong>المبلغ:</strong> {formatMoney(payment.amount)} ريال</div>
+                        <div><strong>المبلغ:</strong> {formatMoney(payment.amount)} {settings.currency}</div>
                         <div><strong>التاريخ:</strong> {payment.date}</div>
                         <div><strong>الحالة:</strong> {paymentStatusLabel(payment.status)}</div>
 
@@ -1929,6 +2241,65 @@ export default function App() {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {showNotificationsPanel && (
+        <div className="drawer-overlay" onClick={() => setShowNotificationsPanel(false)}>
+          <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <div>
+                <h2>الإشعارات</h2>
+                <p className="muted-text">متابعات اليوم، المهام المتأخرة، وعروض الأسعار المعلقة</p>
+              </div>
+
+              <div className="saas-inline-actions">
+                <button className="secondary-btn small-btn" onClick={markAllNotificationsAsRead}>
+                  تعليم الكل كمقروء
+                </button>
+                <button className="danger-btn small-btn" onClick={() => setShowNotificationsPanel(false)}>
+                  إغلاق
+                </button>
+              </div>
+            </div>
+
+            <div className="list-block">
+              {notifications.length === 0 ? (
+                <EmptyState text="لا توجد إشعارات حاليًا" />
+              ) : (
+                notifications.map((notification) => {
+                  const isRead = readNotifications.includes(notification.id)
+                  return (
+                    <div
+                      key={notification.id}
+                      className={`list-item notification-item notification-${notification.type} ${isRead ? 'is-read' : ''}`}
+                    >
+                      <div><strong>{notification.title}</strong></div>
+                      <div className="top-gap">{notification.text}</div>
+                      <div className="meta-text">{notification.date || '-'}</div>
+
+                      <div className="saas-inline-actions top-gap">
+                        <button
+                          className="primary-btn small-btn"
+                          onClick={() => openClientFromNotification(notification)}
+                        >
+                          فتح العميل
+                        </button>
+                        {!isRead && (
+                          <button
+                            className="secondary-btn small-btn"
+                            onClick={() => markNotificationAsRead(notification.id)}
+                          >
+                            تعليم كمقروء
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
           </div>
         </div>
       )}
