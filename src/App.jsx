@@ -1,6 +1,5 @@
 import './styles.css'
 import { useEffect, useMemo, useState } from 'react'
-
 import { initializeApp } from 'firebase/app'
 import {
   getFirestore,
@@ -28,10 +27,45 @@ const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
 
 const STAGES = ['Lead', 'Contacted', 'Meeting', 'Proposal', 'Won']
+const TEMPERATURES = ['Hot', 'Warm']
 const DEAL_STATUSES = ['Open', 'Won', 'Lost']
 const DECISION_STATUSES = ['Pending', 'Approved', 'Rejected', 'No Response']
 const TASK_STATUSES = ['Pending', 'In Progress', 'Done']
 const PAYMENT_STATUSES = ['Pending', 'Paid', 'Partial']
+const TABS = ['overview', 'tasks', 'notes', 'files', 'payments']
+
+const emptyLeadForm = {
+  company: '',
+  phone: '',
+  service: '',
+  temperature: 'Warm',
+  stage: 'Lead',
+  status: 'جديد',
+  dealStatus: 'Open',
+  decisionStatus: 'Pending',
+  quoteAmount: '',
+  expectedCloseDate: '',
+  nextFollowUpDate: ''
+}
+
+const emptyTaskForm = {
+  title: '',
+  dueDate: '',
+  owner: '',
+  status: 'Pending'
+}
+
+const emptyFileForm = {
+  type: 'عرض سعر',
+  url: ''
+}
+
+const emptyPaymentForm = {
+  title: '',
+  amount: '',
+  date: '',
+  status: 'Pending'
+}
 
 const sampleLead = {
   company: 'تمكن لتقنية المعلومات',
@@ -51,131 +85,284 @@ const sampleLead = {
   createdAt: Date.now()
 }
 
+function formatDate(timestamp) {
+  if (!timestamp) return '-'
+  const date = new Date(timestamp)
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
+function formatMoney(value) {
+  return Number(value || 0).toLocaleString('en-US')
+}
+
+function todayString() {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function isTaskToday(task) {
+  return task?.dueDate === todayString() && task?.status !== 'Done'
+}
+
+function isTaskOverdue(task) {
+  return !!task?.dueDate && task?.dueDate < todayString() && task?.status !== 'Done'
+}
+
+function taskStatusClass(task) {
+  if (task.status === 'Done') return 'task-done'
+  if (isTaskOverdue(task)) return 'task-overdue'
+  if (isTaskToday(task)) return 'task-today'
+  return ''
+}
+
+function dealLabel(status) {
+  if (status === 'Won') return 'مغلقة - ربح'
+  if (status === 'Lost') return 'مغلقة - خسارة'
+  return 'مفتوحة'
+}
+
+function decisionLabel(status) {
+  if (status === 'Approved') return 'موافق'
+  if (status === 'Rejected') return 'مرفوض'
+  if (status === 'No Response') return 'لا يوجد رد'
+  return 'بانتظار القرار'
+}
+
+function buildWhatsAppMessage(lead) {
+  const company = lead.company || 'العميل'
+  const service = lead.service || 'الخدمة المطلوبة'
+  const quote = Number(lead.quoteAmount || 0)
+  const paid = Number(lead.paidAmount || 0)
+  const remaining = Number(lead.remainingAmount || 0)
+
+  let text = `السلام عليكم ${company}\n\n`
+
+  if (lead.dealStatus === 'Won') {
+    text += `نشكركم على ثقتكم.\n`
+    text += `الخدمة: ${service}\n`
+    text += `قيمة عرض السعر: ${formatMoney(quote)} ريال\n`
+    text += `المدفوع: ${formatMoney(paid)} ريال\n`
+    text += `المتبقي: ${formatMoney(remaining)} ريال\n\n`
+    text += `يسعدنا متابعة بقية الإجراءات معكم.`
+    return encodeURIComponent(text)
+  }
+
+  if (lead.dealStatus === 'Lost') {
+    text += `نشكر لكم وقتكم.\n`
+    text += `إذا رغبتم بإعادة فتح النقاش بخصوص ${service} فنحن جاهزون لخدمتكم.`
+    return encodeURIComponent(text)
+  }
+
+  if (lead.stage === 'Proposal' || lead.decisionStatus === 'Pending') {
+    text += `نود متابعتكم بخصوص عرض السعر الخاص بخدمة ${service}.\n`
+    text += `قيمة العرض: ${formatMoney(quote)} ريال.\n`
+    text += `حالة القرار الحالية: ${decisionLabel(lead.decisionStatus)}.\n\n`
+    text += `في حال رغبتكم بإكمال الإجراءات أو لديكم أي استفسار، نحن جاهزون لخدمتكم.`
+    return encodeURIComponent(text)
+  }
+
+  if (lead.decisionStatus === 'No Response') {
+    text += `نود التذكير بخصوص عرض السعر لخدمة ${service}.\n`
+    text += `قيمة العرض: ${formatMoney(quote)} ريال.\n\n`
+    text += `يسعدنا استكمال الخطوات معكم عند جاهزيتكم.`
+    return encodeURIComponent(text)
+  }
+
+  text += `هذه متابعة بخصوص طلبكم لخدمة ${service}.\n`
+  text += `المرحلة الحالية: ${lead.stage}\n`
+  text += `حالة الصفقة: ${dealLabel(lead.dealStatus)}\n`
+  text += `عرض السعر: ${formatMoney(quote)} ريال\n`
+  text += `المدفوع: ${formatMoney(paid)} ريال\n`
+  text += `المتبقي: ${formatMoney(remaining)} ريال\n\n`
+  text += `يسعدنا خدمتكم ومتابعة الطلب معكم.`
+  return encodeURIComponent(text)
+}
+
+function Sidebar({ currentPage, setCurrentPage }) {
+  const items = [
+    { key: 'dashboard', label: 'Dashboard' },
+    { key: 'clients', label: 'Clients' },
+    { key: 'tasks', label: 'Tasks' },
+    { key: 'reports', label: 'Reports' },
+    { key: 'settings', label: 'Settings' }
+  ]
+
+  return (
+    <aside className="saas-sidebar">
+      <div className="saas-brand">
+        <div className="saas-brand-badge">T</div>
+        <div>
+          <div className="saas-brand-title">Tamakan CRM</div>
+          <div className="saas-brand-subtitle">Sales SaaS</div>
+        </div>
+      </div>
+
+      <nav className="saas-nav">
+        {items.map((item) => (
+          <button
+            key={item.key}
+            className={`saas-nav-item ${currentPage === item.key ? 'active' : ''}`}
+            onClick={() => setCurrentPage(item.key)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+    </aside>
+  )
+}
+
+function Topbar({ searchTerm, setSearchTerm, openAddPanel, currentPage }) {
+  return (
+    <header className="saas-topbar">
+      <div>
+        <h1 className="saas-page-title">
+          {currentPage === 'dashboard' && 'Dashboard'}
+          {currentPage === 'clients' && 'Clients'}
+          {currentPage === 'tasks' && 'Tasks'}
+          {currentPage === 'reports' && 'Reports'}
+          {currentPage === 'settings' && 'Settings'}
+        </h1>
+        <p className="saas-page-subtitle">إدارة العملاء والصفقات والمتابعات</p>
+      </div>
+
+      <div className="saas-topbar-actions">
+        <input
+          className="saas-search"
+          placeholder="بحث باسم الشركة أو الجوال أو الخدمة"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <button className="primary-btn" onClick={openAddPanel}>
+          + إضافة عميل
+        </button>
+      </div>
+    </header>
+  )
+}
+
+function StatCard({ title, value, accent = 'blue' }) {
+  return (
+    <div className={`stat-card stat-accent-${accent}`}>
+      <span>{title}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function InfoBox({ label, value }) {
+  return (
+    <div className="info-box">
+      <div className="info-box-label">{label}</div>
+      <div className="info-box-value">{value}</div>
+    </div>
+  )
+}
+
+function EmptyState({ text }) {
+  return <div className="empty-state">{text}</div>
+}
+
 export default function App() {
-  const [leads, setLeads] = useState([])
+  const [currentPage, setCurrentPage] = useState('dashboard')
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState(null)
+
+  const [leads, setLeads] = useState([])
   const [selectedClient, setSelectedClient] = useState(null)
+  const [activeTab, setActiveTab] = useState('overview')
+  const [showAddPanel, setShowAddPanel] = useState(false)
 
   const [searchTerm, setSearchTerm] = useState('')
   const [stageFilter, setStageFilter] = useState('All')
   const [tempFilter, setTempFilter] = useState('All')
-  const [dealStatusFilter, setDealStatusFilter] = useState('All')
+  const [dealFilter, setDealFilter] = useState('All')
 
-  const [newLead, setNewLead] = useState({
-    company: '',
-    phone: '',
-    service: '',
-    temperature: 'Warm',
-    stage: 'Lead',
-    status: 'جديد',
-    dealStatus: 'Open',
-    decisionStatus: 'Pending',
-    quoteAmount: '',
-    paidAmount: '',
-    remainingAmount: '',
-    expectedCloseDate: '',
-    nextFollowUpDate: ''
-  })
+  const [newLead, setNewLead] = useState(emptyLeadForm)
 
   const [clientTasks, setClientTasks] = useState([])
-  const [taskForm, setTaskForm] = useState({
-    title: '',
-    dueDate: '',
-    owner: '',
-    status: 'Pending'
-  })
+  const [taskForm, setTaskForm] = useState(emptyTaskForm)
 
   const [clientNotes, setClientNotes] = useState([])
   const [noteText, setNoteText] = useState('')
 
   const [clientFiles, setClientFiles] = useState([])
-  const [fileForm, setFileForm] = useState({
-    type: 'عرض سعر',
-    url: ''
-  })
+  const [fileForm, setFileForm] = useState(emptyFileForm)
 
   const [clientPayments, setClientPayments] = useState([])
-  const [paymentForm, setPaymentForm] = useState({
-    title: '',
-    amount: '',
-    date: '',
-    status: 'Pending'
-  })
+  const [paymentForm, setPaymentForm] = useState(emptyPaymentForm)
 
   useEffect(() => {
-    async function migrateOldDataIfNeeded() {
+    async function seedIfNeeded() {
       const leadsRef = collection(db, 'leads')
       const snapshot = await getDocs(leadsRef)
-
       if (!snapshot.empty) return
 
       const oldLocal = localStorage.getItem('leads')
-
       if (oldLocal) {
         try {
           const parsed = JSON.parse(oldLocal)
-
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed) && parsed.length) {
             for (const item of parsed) {
-              const { id, ...cleanItem } = item
-              const quoteAmount = Number(cleanItem.quoteAmount || 0)
-              const paidAmount = Number(cleanItem.paidAmount || 0)
-
+              const quoteAmount = Number(item.quoteAmount || 0)
+              const paidAmount = Number(item.paidAmount || 0)
               await addDoc(leadsRef, {
-                company: cleanItem.company || '',
-                phone: cleanItem.phone || '',
-                service: cleanItem.service || '',
-                temperature: cleanItem.temperature || 'Warm',
-                stage: cleanItem.stage || 'Lead',
-                status: cleanItem.status || 'جديد',
-                dealStatus: cleanItem.dealStatus || 'Open',
-                decisionStatus: cleanItem.decisionStatus || 'Pending',
+                company: item.company || '',
+                phone: item.phone || '',
+                service: item.service || '',
+                temperature: item.temperature || 'Warm',
+                stage: item.stage || 'Lead',
+                status: item.status || 'جديد',
+                dealStatus: item.dealStatus || 'Open',
+                decisionStatus: item.decisionStatus || 'Pending',
                 quoteAmount,
                 paidAmount,
                 remainingAmount: Math.max(quoteAmount - paidAmount, 0),
-                expectedCloseDate: cleanItem.expectedCloseDate || '',
-                nextFollowUpDate: cleanItem.nextFollowUpDate || '',
-                lastActivityAt: cleanItem.lastActivityAt || Date.now(),
-                createdAt: cleanItem.createdAt || Date.now()
+                expectedCloseDate: item.expectedCloseDate || '',
+                nextFollowUpDate: item.nextFollowUpDate || '',
+                lastActivityAt: item.lastActivityAt || Date.now(),
+                createdAt: item.createdAt || Date.now()
               })
             }
             return
           }
         } catch (error) {
-          console.error('خطأ في قراءة localStorage:', error)
+          console.error('خطأ في قراءة البيانات القديمة:', error)
         }
       }
 
       await addDoc(leadsRef, sampleLead)
     }
 
+    let unsubscribeRef
+
     async function init() {
-      await migrateOldDataIfNeeded()
+      await seedIfNeeded()
 
       const unsubscribe = onSnapshot(collection(db, 'leads'), (snapshot) => {
         const data = snapshot.docs.map((item) => ({
           id: item.id,
           ...item.data()
         }))
-
         setLeads(data)
         setLoading(false)
 
         if (selectedClient) {
-          const updatedClient = data.find((item) => item.id === selectedClient.id)
-          if (updatedClient) setSelectedClient(updatedClient)
+          const fresh = data.find((x) => x.id === selectedClient.id)
+          if (fresh) setSelectedClient(fresh)
         }
       })
 
-      return unsubscribe
+      unsubscribeRef = unsubscribe
     }
 
-    let unsubscribeRef
-
-    init().then((unsubscribe) => {
-      unsubscribeRef = unsubscribe
-    })
+    init()
 
     return () => {
       if (unsubscribeRef) unsubscribeRef()
@@ -185,221 +372,80 @@ export default function App() {
   useEffect(() => {
     if (!selectedClient) {
       setClientTasks([])
-      return
-    }
-
-    const tasksRef = collection(db, 'leads', selectedClient.id, 'tasks')
-    const q = query(tasksRef, orderBy('createdAt', 'desc'))
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setClientTasks(
-        snapshot.docs.map((item) => ({
-          id: item.id,
-          ...item.data()
-        }))
-      )
-    })
-
-    return () => unsubscribe()
-  }, [selectedClient])
-
-  useEffect(() => {
-    if (!selectedClient) {
       setClientNotes([])
-      return
-    }
-
-    const notesRef = collection(db, 'leads', selectedClient.id, 'notes')
-    const q = query(notesRef, orderBy('createdAt', 'desc'))
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setClientNotes(
-        snapshot.docs.map((item) => ({
-          id: item.id,
-          ...item.data()
-        }))
-      )
-    })
-
-    return () => unsubscribe()
-  }, [selectedClient])
-
-  useEffect(() => {
-    if (!selectedClient) {
       setClientFiles([])
-      return
-    }
-
-    const filesRef = collection(db, 'leads', selectedClient.id, 'files')
-    const q = query(filesRef, orderBy('createdAt', 'desc'))
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setClientFiles(
-        snapshot.docs.map((item) => ({
-          id: item.id,
-          ...item.data()
-        }))
-      )
-    })
-
-    return () => unsubscribe()
-  }, [selectedClient])
-
-  useEffect(() => {
-    if (!selectedClient) {
       setClientPayments([])
       return
     }
 
-    const paymentsRef = collection(db, 'leads', selectedClient.id, 'payments')
-    const q = query(paymentsRef, orderBy('createdAt', 'desc'))
+    const unsubscribers = []
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setClientPayments(
-        snapshot.docs.map((item) => ({
-          id: item.id,
-          ...item.data()
-        }))
-      )
-    })
+    const tasksQ = query(
+      collection(db, 'leads', selectedClient.id, 'tasks'),
+      orderBy('createdAt', 'desc')
+    )
+    unsubscribers.push(
+      onSnapshot(tasksQ, (snapshot) => {
+        setClientTasks(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
+      })
+    )
 
-    return () => unsubscribe()
+    const notesQ = query(
+      collection(db, 'leads', selectedClient.id, 'notes'),
+      orderBy('createdAt', 'desc')
+    )
+    unsubscribers.push(
+      onSnapshot(notesQ, (snapshot) => {
+        setClientNotes(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
+      })
+    )
+
+    const filesQ = query(
+      collection(db, 'leads', selectedClient.id, 'files'),
+      orderBy('createdAt', 'desc')
+    )
+    unsubscribers.push(
+      onSnapshot(filesQ, (snapshot) => {
+        setClientFiles(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
+      })
+    )
+
+    const paymentsQ = query(
+      collection(db, 'leads', selectedClient.id, 'payments'),
+      orderBy('createdAt', 'desc')
+    )
+    unsubscribers.push(
+      onSnapshot(paymentsQ, (snapshot) => {
+        setClientPayments(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
+      })
+    )
+
+    return () => {
+      unsubscribers.forEach((fn) => fn())
+    }
   }, [selectedClient])
 
-  function formatDate(timestamp) {
-    if (!timestamp) return '-'
-    const date = new Date(timestamp)
-    const day = String(date.getDate()).padStart(2, '0')
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const year = date.getFullYear()
-    return `${day}/${month}/${year}`
-  }
-
-  function formatMoney(value) {
-    return Number(value || 0).toLocaleString('en-US')
-  }
-
-  function isTaskOverdue(task) {
-    if (!task?.dueDate || task?.status === 'Done') return false
-    const today = new Date()
-    const current = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-    const due = new Date(task.dueDate)
-    return due < current
-  }
-
-  function isTaskToday(task) {
-    if (!task?.dueDate || task?.status === 'Done') return false
-    const today = new Date()
-    const current = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
-      today.getDate()
-    ).padStart(2, '0')}`
-    return task.dueDate === current
-  }
-
-  function getTaskStatusColor(task) {
-    if (task.status === 'Done') return '#16a34a'
-    if (isTaskOverdue(task)) return '#dc2626'
-    if (isTaskToday(task)) return '#ca8a04'
-    return '#2563eb'
-  }
-
-  function getDecisionLabel(status) {
-    switch (status) {
-      case 'Approved':
-        return 'موافق'
-      case 'Rejected':
-        return 'مرفوض'
-      case 'No Response':
-        return 'لا يوجد رد'
-      default:
-        return 'بانتظار القرار'
-    }
-  }
-
-  function getDealLabel(status) {
-    switch (status) {
-      case 'Won':
-        return 'مغلقة - ربح'
-      case 'Lost':
-        return 'مغلقة - خسارة'
-      default:
-        return 'مفتوحة'
-    }
-  }
-
-  function buildWhatsappMessage(lead) {
-    const company = lead.company || 'العميل'
-    const service = lead.service || 'الخدمة المطلوبة'
-    const quoteAmount = Number(lead.quoteAmount || 0)
-    const paidAmount = Number(lead.paidAmount || 0)
-    const remainingAmount = Number(lead.remainingAmount || 0)
-
-    let message = `السلام عليكم ${company}\n\n`
-
-    if (lead.dealStatus === 'Won') {
-      message += `نشكركم على ثقتكم.\n`
-      message += `حالة المشروع: ${getDealLabel(lead.dealStatus)}\n`
-      message += `الخدمة: ${service}\n`
-      message += `قيمة عرض السعر: ${formatMoney(quoteAmount)} ريال\n`
-      message += `المدفوع: ${formatMoney(paidAmount)} ريال\n`
-      message += `المتبقي: ${formatMoney(remainingAmount)} ريال\n\n`
-      message += `يسعدنا متابعة بقية الإجراءات معكم.`
-      return encodeURIComponent(message)
-    }
-
-    if (lead.dealStatus === 'Lost') {
-      message += `نشكركم على وقتكم.\n`
-      message += `إذا رغبتم لاحقًا بإعادة فتح النقاش حول خدمة ${service} فنحن جاهزون لخدمتكم.`
-      return encodeURIComponent(message)
-    }
-
-    if (lead.stage === 'Proposal' || lead.decisionStatus === 'Pending') {
-      message += `نود متابعتكم بخصوص عرض السعر الخاص بخدمة ${service}.\n`
-      message += `قيمة العرض: ${formatMoney(quoteAmount)} ريال.\n`
-      message += `حالة القرار الحالية: ${getDecisionLabel(lead.decisionStatus)}.\n\n`
-      message += `في حال رغبتكم بإكمال الإجراءات أو لديكم أي استفسار، نحن جاهزون لخدمتكم.`
-      return encodeURIComponent(message)
-    }
-
-    if (lead.decisionStatus === 'No Response') {
-      message += `نود التذكير بخصوص عرض السعر لخدمة ${service}.\n`
-      message += `قيمة العرض: ${formatMoney(quoteAmount)} ريال.\n\n`
-      message += `يسعدنا استكمال الخطوات معكم عند جاهزيتكم.`
-      return encodeURIComponent(message)
-    }
-
-    message += `هذه متابعة بخصوص طلبكم لخدمة ${service}.\n`
-    message += `المرحلة الحالية: ${lead.stage}\n`
-    message += `حالة الصفقة: ${getDealLabel(lead.dealStatus)}\n`
-    message += `عرض السعر: ${formatMoney(quoteAmount)} ريال\n`
-    message += `المدفوع: ${formatMoney(paidAmount)} ريال\n`
-    message += `المتبقي: ${formatMoney(remainingAmount)} ريال\n\n`
-    message += `يسعدنا خدمتكم ومتابعة الطلب معكم.`
-    return encodeURIComponent(message)
-  }
-
-  async function touchClientActivity(clientId) {
+  async function touchClient(clientId, extra = {}) {
     await updateDoc(doc(db, 'leads', clientId), {
-      lastActivityAt: Date.now()
+      lastActivityAt: Date.now(),
+      ...extra
     })
   }
 
-  async function recalculateClientFinancials(clientId, quoteAmountOverride = null) {
-    const paymentsSnapshot = await getDocs(collection(db, 'leads', clientId, 'payments'))
+  async function recalcPayments(clientId, quoteOverride = null) {
+    const snapshot = await getDocs(collection(db, 'leads', clientId, 'payments'))
     let paid = 0
 
-    paymentsSnapshot.forEach((item) => {
-      const data = item.data()
-      if (data.status === 'Paid' || data.status === 'Partial') {
-        paid += Number(data.amount || 0)
+    snapshot.forEach((d) => {
+      const payment = d.data()
+      if (payment.status === 'Paid' || payment.status === 'Partial') {
+        paid += Number(payment.amount || 0)
       }
     })
 
-    const currentClient = leads.find((item) => item.id === clientId)
+    const current = leads.find((x) => x.id === clientId)
     const quoteAmount =
-      quoteAmountOverride !== null
-        ? Number(quoteAmountOverride || 0)
-        : Number(currentClient?.quoteAmount || 0)
+      quoteOverride !== null ? Number(quoteOverride || 0) : Number(current?.quoteAmount || 0)
 
     await updateDoc(doc(db, 'leads', clientId), {
       paidAmount: paid,
@@ -410,102 +456,64 @@ export default function App() {
 
   async function addLead() {
     if (!newLead.company || !newLead.phone) {
-      alert('اكمل البيانات الأساسية')
+      alert('أكمل اسم الشركة ورقم الجوال')
       return
     }
 
     const quoteAmount = Number(newLead.quoteAmount || 0)
-    const paidAmount = Number(newLead.paidAmount || 0)
 
     await addDoc(collection(db, 'leads'), {
       company: newLead.company,
       phone: newLead.phone,
-      service: newLead.service || '',
+      service: newLead.service,
       temperature: newLead.temperature,
       stage: newLead.stage,
-      status: newLead.status || 'جديد',
-      dealStatus: newLead.dealStatus || 'Open',
-      decisionStatus: newLead.decisionStatus || 'Pending',
+      status: 'جديد',
+      dealStatus: newLead.dealStatus,
+      decisionStatus: newLead.decisionStatus,
       quoteAmount,
-      paidAmount,
-      remainingAmount: Math.max(quoteAmount - paidAmount, 0),
+      paidAmount: 0,
+      remainingAmount: quoteAmount,
       expectedCloseDate: newLead.expectedCloseDate || '',
       nextFollowUpDate: newLead.nextFollowUpDate || '',
       lastActivityAt: Date.now(),
       createdAt: Date.now()
     })
 
-    setNewLead({
-      company: '',
-      phone: '',
-      service: '',
-      temperature: 'Warm',
-      stage: 'Lead',
-      status: 'جديد',
-      dealStatus: 'Open',
-      decisionStatus: 'Pending',
-      quoteAmount: '',
-      paidAmount: '',
-      remainingAmount: '',
-      expectedCloseDate: '',
-      nextFollowUpDate: ''
+    setNewLead(emptyLeadForm)
+    setShowAddPanel(false)
+  }
+
+  async function updateLead(lead) {
+    const { id, ...payload } = lead
+    const quoteAmount = Number(payload.quoteAmount || 0)
+
+    await updateDoc(doc(db, 'leads', id), {
+      ...payload,
+      quoteAmount,
+      remainingAmount: Math.max(quoteAmount - Number(payload.paidAmount || 0), 0),
+      lastActivityAt: Date.now()
     })
+
+    await recalcPayments(id, quoteAmount)
+    setEditingId(null)
   }
 
   async function deleteLead(id) {
     await deleteDoc(doc(db, 'leads', id))
     if (selectedClient?.id === id) {
       setSelectedClient(null)
-      setClientTasks([])
-      setClientNotes([])
-      setClientFiles([])
-      setClientPayments([])
+      setActiveTab('overview')
     }
   }
 
-  async function updateLead(lead) {
-    const ref = doc(db, 'leads', lead.id)
-    const { id, ...payload } = lead
-
-    const quoteAmount = Number(payload.quoteAmount || 0)
-    const paidAmount = Number(payload.paidAmount || 0)
-
-    await updateDoc(ref, {
-      ...payload,
-      quoteAmount,
-      paidAmount,
-      remainingAmount: Math.max(quoteAmount - paidAmount, 0),
-      lastActivityAt: Date.now()
-    })
-
-    await recalculateClientFinancials(lead.id, quoteAmount)
-    setEditingId(null)
+  function patchLeadLocal(id, field, value) {
+    setLeads((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
   }
 
-  function updateLeadField(id, field, value) {
-    setLeads(
-      leads.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    )
-  }
-
-  function updateStageLocally(id, stage) {
-    setLeads(leads.map((item) => (item.id === id ? { ...item, stage } : item)))
-  }
-
-  function updateTempLocally(id, temperature) {
-    setLeads(leads.map((item) => (item.id === id ? { ...item, temperature } : item)))
-  }
-
-  async function saveQuickStage(id, stage) {
+  async function saveQuickField(id, field, value) {
     await updateDoc(doc(db, 'leads', id), {
-      stage,
-      lastActivityAt: Date.now()
-    })
-  }
-
-  async function saveQuickTemp(id, temperature) {
-    await updateDoc(doc(db, 'leads', id), {
-      temperature,
+      [field]: value,
       lastActivityAt: Date.now()
     })
   }
@@ -513,7 +521,7 @@ export default function App() {
   async function addTask() {
     if (!selectedClient) return
     if (!taskForm.title || !taskForm.dueDate || !taskForm.owner) {
-      alert('اكمل بيانات المهمة')
+      alert('أكمل بيانات المهمة')
       return
     }
 
@@ -525,26 +533,20 @@ export default function App() {
       createdAt: Date.now()
     })
 
-    await touchClientActivity(selectedClient.id)
-
-    setTaskForm({
-      title: '',
-      dueDate: '',
-      owner: '',
-      status: 'Pending'
-    })
+    await touchClient(selectedClient.id)
+    setTaskForm(emptyTaskForm)
   }
 
   async function updateTaskStatus(taskId, status) {
     if (!selectedClient) return
     await updateDoc(doc(db, 'leads', selectedClient.id, 'tasks', taskId), { status })
-    await touchClientActivity(selectedClient.id)
+    await touchClient(selectedClient.id)
   }
 
   async function deleteTask(taskId) {
     if (!selectedClient) return
     await deleteDoc(doc(db, 'leads', selectedClient.id, 'tasks', taskId))
-    await touchClientActivity(selectedClient.id)
+    await touchClient(selectedClient.id)
   }
 
   async function addNote() {
@@ -558,14 +560,14 @@ export default function App() {
       createdAt: Date.now()
     })
 
-    await touchClientActivity(selectedClient.id)
+    await touchClient(selectedClient.id)
     setNoteText('')
   }
 
   async function deleteNote(noteId) {
     if (!selectedClient) return
     await deleteDoc(doc(db, 'leads', selectedClient.id, 'notes', noteId))
-    await touchClientActivity(selectedClient.id)
+    await touchClient(selectedClient.id)
   }
 
   async function addFile() {
@@ -580,23 +582,20 @@ export default function App() {
       createdAt: Date.now()
     })
 
-    await touchClientActivity(selectedClient.id)
-    setFileForm({
-      type: 'عرض سعر',
-      url: ''
-    })
+    await touchClient(selectedClient.id)
+    setFileForm(emptyFileForm)
   }
 
   async function deleteFile(fileId) {
     if (!selectedClient) return
     await deleteDoc(doc(db, 'leads', selectedClient.id, 'files', fileId))
-    await touchClientActivity(selectedClient.id)
+    await touchClient(selectedClient.id)
   }
 
   async function addPayment() {
     if (!selectedClient) return
     if (!paymentForm.title || !paymentForm.amount || !paymentForm.date) {
-      alert('اكمل بيانات الدفعة')
+      alert('أكمل بيانات الدفعة')
       return
     }
 
@@ -608,29 +607,23 @@ export default function App() {
       createdAt: Date.now()
     })
 
-    await touchClientActivity(selectedClient.id)
-    await recalculateClientFinancials(selectedClient.id)
-
-    setPaymentForm({
-      title: '',
-      amount: '',
-      date: '',
-      status: 'Pending'
-    })
+    await touchClient(selectedClient.id)
+    await recalcPayments(selectedClient.id)
+    setPaymentForm(emptyPaymentForm)
   }
 
   async function updatePaymentStatus(paymentId, status) {
     if (!selectedClient) return
     await updateDoc(doc(db, 'leads', selectedClient.id, 'payments', paymentId), { status })
-    await touchClientActivity(selectedClient.id)
-    await recalculateClientFinancials(selectedClient.id)
+    await touchClient(selectedClient.id)
+    await recalcPayments(selectedClient.id)
   }
 
   async function deletePayment(paymentId) {
     if (!selectedClient) return
     await deleteDoc(doc(db, 'leads', selectedClient.id, 'payments', paymentId))
-    await touchClientActivity(selectedClient.id)
-    await recalculateClientFinancials(selectedClient.id)
+    await touchClient(selectedClient.id)
+    await recalcPayments(selectedClient.id)
   }
 
   function exportCsv() {
@@ -663,11 +656,7 @@ export default function App() {
     ])
 
     const csv = [headers, ...rows]
-      .map((row) =>
-        row
-          .map((field) => `"${String(field).replace(/"/g, '""')}"`)
-          .join(',')
-      )
+      .map((row) => row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(','))
       .join('\n')
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -682,830 +671,732 @@ export default function App() {
 
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
-      const text = searchTerm.trim().toLowerCase()
+      const q = searchTerm.trim().toLowerCase()
 
       const matchesSearch =
-        !text ||
-        (lead.company || '').toLowerCase().includes(text) ||
-        (lead.phone || '').toLowerCase().includes(text) ||
-        (lead.status || '').toLowerCase().includes(text) ||
-        (lead.stage || '').toLowerCase().includes(text) ||
-        (lead.service || '').toLowerCase().includes(text)
+        !q ||
+        (lead.company || '').toLowerCase().includes(q) ||
+        (lead.phone || '').toLowerCase().includes(q) ||
+        (lead.service || '').toLowerCase().includes(q) ||
+        (lead.stage || '').toLowerCase().includes(q) ||
+        (lead.status || '').toLowerCase().includes(q)
 
       const matchesStage = stageFilter === 'All' || lead.stage === stageFilter
       const matchesTemp = tempFilter === 'All' || lead.temperature === tempFilter
-      const matchesDeal = dealStatusFilter === 'All' || lead.dealStatus === dealStatusFilter
+      const matchesDeal = dealFilter === 'All' || lead.dealStatus === dealFilter
 
       return matchesSearch && matchesStage && matchesTemp && matchesDeal
     })
-  }, [leads, searchTerm, stageFilter, tempFilter, dealStatusFilter])
-
-  const allTasks = useMemo(() => {
-    return clientTasks
-  }, [clientTasks])
+  }, [leads, searchTerm, stageFilter, tempFilter, dealFilter])
 
   const total = leads.length
   const filteredTotal = filteredLeads.length
-  const hotCount = leads.filter((l) => l.temperature === 'Hot').length
-  const warmCount = leads.filter((l) => l.temperature === 'Warm').length
-  const wonCount = leads.filter((l) => l.stage === 'Won' || l.dealStatus === 'Won').length
-  const lostCount = leads.filter((l) => l.dealStatus === 'Lost').length
-  const contactedCount = leads.filter((l) => l.stage === 'Contacted').length
-  const meetingCount = leads.filter((l) => l.stage === 'Meeting').length
-  const proposalCount = leads.filter((l) => l.stage === 'Proposal').length
-  const totalDealValue = leads.reduce((sum, item) => sum + Number(item.quoteAmount || 0), 0)
+  const hotCount = leads.filter((x) => x.temperature === 'Hot').length
+  const warmCount = leads.filter((x) => x.temperature === 'Warm').length
+  const contactedCount = leads.filter((x) => x.stage === 'Contacted').length
+  const meetingCount = leads.filter((x) => x.stage === 'Meeting').length
+  const proposalCount = leads.filter((x) => x.stage === 'Proposal').length
+  const wonCount = leads.filter((x) => x.dealStatus === 'Won' || x.stage === 'Won').length
+  const lostCount = leads.filter((x) => x.dealStatus === 'Lost').length
+  const totalDealValue = leads.reduce((sum, x) => sum + Number(x.quoteAmount || 0), 0)
   const totalWonValue = leads
-    .filter((item) => item.dealStatus === 'Won')
-    .reduce((sum, item) => sum + Number(item.quoteAmount || 0), 0)
+    .filter((x) => x.dealStatus === 'Won')
+    .reduce((sum, x) => sum + Number(x.quoteAmount || 0), 0)
 
-  const todayTasksCount = allTasks.filter((task) => isTaskToday(task)).length
-  const overdueTasksCount = allTasks.filter((task) => isTaskOverdue(task)).length
-  const doneTasksCount = allTasks.filter((task) => task.status === 'Done').length
+  const todayTasksCount = clientTasks.filter(isTaskToday).length
+  const overdueTasksCount = clientTasks.filter(isTaskOverdue).length
+  const doneTasksCount = clientTasks.filter((t) => t.status === 'Done').length
 
-  const selectedClientPaid = Number(selectedClient?.paidAmount || 0)
-  const selectedClientQuote = Number(selectedClient?.quoteAmount || 0)
-  const selectedClientRemaining = Number(selectedClient?.remainingAmount || 0)
+  const selectedClientPaymentsSummary = {
+    quote: Number(selectedClient?.quoteAmount || 0),
+    paid: Number(selectedClient?.paidAmount || 0),
+    remaining: Number(selectedClient?.remainingAmount || 0)
+  }
 
   if (loading) {
     return (
-      <div className="container" dir="rtl">
-        <h1>🚀 Tamakan CRM</h1>
-        <p>جاري تحميل البيانات...</p>
+      <div className="saas-shell">
+        <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+        <main className="saas-main">
+          <div className="loading-box">جاري تحميل البيانات...</div>
+        </main>
       </div>
     )
   }
 
   return (
-    <div className="container" dir="rtl">
-      <h1>🚀 Tamakan CRM</h1>
+    <div className="saas-shell">
+      <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
 
-      <div style={{ display: 'grid', gap: '12px', marginBottom: '20px' }}>
-        <input
-          placeholder="بحث باسم الشركة أو الجوال أو الخدمة أو الحالة أو المرحلة"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '12px',
-            borderRadius: '10px',
-            border: '1px solid rgba(255,255,255,0.12)',
-            background: '#12264d',
-            color: 'white'
-          }}
+      <main className="saas-main">
+        <Topbar
+          currentPage={currentPage}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          openAddPanel={() => setShowAddPanel(true)}
         />
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '10px' }}>
-          <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}>
-            <option value="All">كل المراحل</option>
-            {STAGES.map((stage) => (
-              <option key={stage} value={stage}>
-                {stage}
-              </option>
-            ))}
-          </select>
+        <section className="saas-filters-panel">
+          <div className="saas-grid-4">
+            <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}>
+              <option value="All">كل المراحل</option>
+              {STAGES.map((stage) => (
+                <option key={stage} value={stage}>
+                  {stage}
+                </option>
+              ))}
+            </select>
 
-          <select value={tempFilter} onChange={(e) => setTempFilter(e.target.value)}>
-            <option value="All">كل الدرجات</option>
-            <option value="Hot">Hot</option>
-            <option value="Warm">Warm</option>
-          </select>
+            <select value={tempFilter} onChange={(e) => setTempFilter(e.target.value)}>
+              <option value="All">كل الدرجات</option>
+              {TEMPERATURES.map((temp) => (
+                <option key={temp} value={temp}>
+                  {temp}
+                </option>
+              ))}
+            </select>
 
-          <select value={dealStatusFilter} onChange={(e) => setDealStatusFilter(e.target.value)}>
-            <option value="All">كل حالات الصفقة</option>
-            {DEAL_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
+            <select value={dealFilter} onChange={(e) => setDealFilter(e.target.value)}>
+              <option value="All">كل حالات الصفقة</option>
+              {DEAL_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
 
-          <button className="primary-btn" onClick={exportCsv}>
-            ⬇️ تصدير CSV
-          </button>
-        </div>
-      </div>
+            <button className="primary-btn" onClick={exportCsv}>
+              ⬇️ تصدير CSV
+            </button>
+          </div>
+        </section>
 
-      <div className="stats-grid stats-grid-extended">
-        <div className="stat-card">
-          <span>📊 إجمالي العملاء</span>
-          <strong>{total}</strong>
-        </div>
-        <div className="stat-card">
-          <span>🔎 نتائج البحث</span>
-          <strong>{filteredTotal}</strong>
-        </div>
-        <div className="stat-card">
-          <span>🔥 Hot</span>
-          <strong>{hotCount}</strong>
-        </div>
-        <div className="stat-card">
-          <span>🟡 Warm</span>
-          <strong>{warmCount}</strong>
-        </div>
-        <div className="stat-card">
-          <span>☎️ Contacted</span>
-          <strong>{contactedCount}</strong>
-        </div>
-        <div className="stat-card">
-          <span>🤝 Meeting</span>
-          <strong>{meetingCount}</strong>
-        </div>
-        <div className="stat-card">
-          <span>📄 Proposal</span>
-          <strong>{proposalCount}</strong>
-        </div>
-        <div className="stat-card">
-          <span>💰 Won</span>
-          <strong>{wonCount}</strong>
-        </div>
-        <div className="stat-card">
-          <span>❌ Lost</span>
-          <strong>{lostCount}</strong>
-        </div>
-        <div className="stat-card">
-          <span>💵 قيمة الصفقات</span>
-          <strong>{formatMoney(totalDealValue)}</strong>
-        </div>
-        <div className="stat-card">
-          <span>✅ أرباح محققة</span>
-          <strong>{formatMoney(totalWonValue)}</strong>
-        </div>
-        <div className="stat-card">
-          <span>📅 مهام اليوم</span>
-          <strong>{todayTasksCount}</strong>
-        </div>
-        <div className="stat-card">
-          <span>🚨 مهام متأخرة</span>
-          <strong>{overdueTasksCount}</strong>
-        </div>
-        <div className="stat-card">
-          <span>✔️ مهام مكتملة</span>
-          <strong>{doneTasksCount}</strong>
-        </div>
-      </div>
+        {(currentPage === 'dashboard' || currentPage === 'clients') && (
+          <>
+            <section className="stats-grid stats-grid-extended">
+              <StatCard title="📊 إجمالي العملاء" value={total} accent="blue" />
+              <StatCard title="🔎 نتائج البحث" value={filteredTotal} accent="purple" />
+              <StatCard title="🔥 Hot" value={hotCount} accent="red" />
+              <StatCard title="🟡 Warm" value={warmCount} accent="gold" />
+              <StatCard title="☎️ Contacted" value={contactedCount} accent="orange" />
+              <StatCard title="🤝 Meeting" value={meetingCount} accent="violet" />
+              <StatCard title="📄 Proposal" value={proposalCount} accent="cyan" />
+              <StatCard title="💰 Won" value={wonCount} accent="green" />
+              <StatCard title="❌ Lost" value={lostCount} accent="red" />
+              <StatCard title="💵 قيمة الصفقات" value={formatMoney(totalDealValue)} accent="blue" />
+              <StatCard title="✅ أرباح محققة" value={formatMoney(totalWonValue)} accent="green" />
+              <StatCard title="📅 مهام اليوم" value={todayTasksCount} accent="gold" />
+              <StatCard title="🚨 مهام متأخرة" value={overdueTasksCount} accent="red" />
+              <StatCard title="✔️ مهام مكتملة" value={doneTasksCount} accent="green" />
+            </section>
 
-      <div className="form-box">
-        <input
-          placeholder="اسم الشركة"
-          value={newLead.company}
-          onChange={(e) => setNewLead({ ...newLead, company: e.target.value })}
-        />
+            <section className="saas-board">
+              {STAGES.map((stage) => (
+                <div key={stage} className="saas-column">
+                  <div className="saas-column-header">
+                    <h3>{stage}</h3>
+                    <span>{filteredLeads.filter((lead) => lead.stage === stage).length}</span>
+                  </div>
 
-        <input
-          placeholder="رقم الجوال"
-          value={newLead.phone}
-          onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })}
-        />
+                  <div className="saas-column-body">
+                    {filteredLeads
+                      .filter((lead) => lead.stage === stage)
+                      .map((lead) => (
+                        <div
+                          key={lead.id}
+                          className="saas-lead-card"
+                          style={{ borderRightColor: lead.temperature === 'Hot' ? '#ef4444' : '#f59e0b' }}
+                          onClick={() => {
+                            setSelectedClient(lead)
+                            setActiveTab('overview')
+                          }}
+                        >
+                          {editingId === lead.id ? (
+                            <>
+                              <input
+                                value={lead.company}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => patchLeadLocal(lead.id, 'company', e.target.value)}
+                              />
+                              <input
+                                value={lead.phone}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => patchLeadLocal(lead.id, 'phone', e.target.value)}
+                              />
+                              <input
+                                value={lead.service || ''}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => patchLeadLocal(lead.id, 'service', e.target.value)}
+                                placeholder="الخدمة"
+                              />
+                              <input
+                                type="number"
+                                value={lead.quoteAmount || 0}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => patchLeadLocal(lead.id, 'quoteAmount', e.target.value)}
+                                placeholder="عرض السعر"
+                              />
+                              <select
+                                value={lead.dealStatus || 'Open'}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => patchLeadLocal(lead.id, 'dealStatus', e.target.value)}
+                              >
+                                {DEAL_STATUSES.map((status) => (
+                                  <option key={status} value={status}>
+                                    {status}
+                                  </option>
+                                ))}
+                              </select>
+                              <select
+                                value={lead.decisionStatus || 'Pending'}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => patchLeadLocal(lead.id, 'decisionStatus', e.target.value)}
+                              >
+                                {DECISION_STATUSES.map((status) => (
+                                  <option key={status} value={status}>
+                                    {status}
+                                  </option>
+                                ))}
+                              </select>
 
-        <input
-          placeholder="الخدمة المطلوبة"
-          value={newLead.service}
-          onChange={(e) => setNewLead({ ...newLead, service: e.target.value })}
-        />
+                              <div className="saas-inline-actions">
+                                <button
+                                  className="primary-btn small-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    updateLead(lead)
+                                  }}
+                                >
+                                  💾 حفظ
+                                </button>
+                                <button
+                                  className="danger-btn small-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setEditingId(null)
+                                  }}
+                                >
+                                  ✖
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="saas-lead-header">
+                                <strong>{lead.company}</strong>
+                                <span className="saas-stage-chip">{lead.stage}</span>
+                              </div>
 
-        <input
-          placeholder="عرض السعر"
-          type="number"
-          value={newLead.quoteAmount}
-          onChange={(e) => setNewLead({ ...newLead, quoteAmount: e.target.value })}
-        />
+                              <div className="saas-lead-meta">الخدمة: {lead.service || '-'}</div>
+                              <div className="saas-lead-meta">حالة الصفقة: {dealLabel(lead.dealStatus)}</div>
+                              <div className="saas-lead-meta">حالة القرار: {decisionLabel(lead.decisionStatus)}</div>
+                              <div className="saas-lead-meta">عرض السعر: {formatMoney(lead.quoteAmount)} ريال</div>
+                              <div className="saas-lead-meta">المدفوع: {formatMoney(lead.paidAmount)} ريال</div>
+                              <div className="saas-lead-meta">المتبقي: {formatMoney(lead.remainingAmount)} ريال</div>
+                              <div className="saas-lead-small">📅 {formatDate(lead.createdAt)}</div>
+                              <div className="saas-lead-small">📌 متابعة: {lead.nextFollowUpDate || '-'}</div>
 
-        <input
-          placeholder="المتابعة القادمة"
-          type="date"
-          value={newLead.nextFollowUpDate}
-          onChange={(e) => setNewLead({ ...newLead, nextFollowUpDate: e.target.value })}
-        />
+                              <div className="saas-inline-actions">
+                                <a
+                                  href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="wa-btn"
+                                >
+                                  واتساب ذكي
+                                </a>
 
-        <select
-          value={newLead.temperature}
-          onChange={(e) => setNewLead({ ...newLead, temperature: e.target.value })}
-        >
-          <option value="Hot">Hot</option>
-          <option value="Warm">Warm</option>
-        </select>
+                                <button
+                                  className="primary-btn small-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setEditingId(lead.id)
+                                  }}
+                                >
+                                  ✏️
+                                </button>
 
-        <select
-          value={newLead.stage}
-          onChange={(e) => setNewLead({ ...newLead, stage: e.target.value })}
-        >
-          {STAGES.map((stage) => (
-            <option key={stage} value={stage}>
-              {stage}
-            </option>
-          ))}
-        </select>
+                                <button
+                                  className="danger-btn small-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    deleteLead(lead.id)
+                                  }}
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </>
+                          )}
 
-        <select
-          value={newLead.dealStatus}
-          onChange={(e) => setNewLead({ ...newLead, dealStatus: e.target.value })}
-        >
-          {DEAL_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
-        </select>
+                          <div className="saas-inline-actions top-gap">
+                            <select
+                              value={lead.stage}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={async (e) => {
+                                const value = e.target.value
+                                patchLeadLocal(lead.id, 'stage', value)
+                                await saveQuickField(lead.id, 'stage', value)
+                              }}
+                            >
+                              {STAGES.map((stageOption) => (
+                                <option key={stageOption} value={stageOption}>
+                                  {stageOption}
+                                </option>
+                              ))}
+                            </select>
 
-        <select
-          value={newLead.decisionStatus}
-          onChange={(e) => setNewLead({ ...newLead, decisionStatus: e.target.value })}
-        >
-          {DECISION_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
-        </select>
+                            <select
+                              value={lead.temperature}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={async (e) => {
+                                const value = e.target.value
+                                patchLeadLocal(lead.id, 'temperature', value)
+                                await saveQuickField(lead.id, 'temperature', value)
+                              }}
+                            >
+                              {TEMPERATURES.map((temp) => (
+                                <option key={temp} value={temp}>
+                                  {temp}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              ))}
+            </section>
+          </>
+        )}
 
-        <button className="primary-btn" onClick={addLead}>
-          ➕ إضافة
-        </button>
-      </div>
+        {currentPage === 'tasks' && (
+          <section className="saas-page-panel">
+            <h2>مهام العميل المحدد</h2>
+            {selectedClient ? (
+              <>
+                <p className="muted-text">العميل الحالي: {selectedClient.company}</p>
+                <div className="list-block">
+                  {clientTasks.length === 0 ? (
+                    <EmptyState text="لا توجد مهام لهذا العميل" />
+                  ) : (
+                    clientTasks.map((task) => (
+                      <div key={task.id} className={`list-item ${taskStatusClass(task)}`}>
+                        <div><strong>المهمة:</strong> {task.title}</div>
+                        <div><strong>التاريخ:</strong> {task.dueDate}</div>
+                        <div><strong>المسؤول:</strong> {task.owner}</div>
+                        <div><strong>الحالة:</strong> {task.status}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : (
+              <EmptyState text="اختر عميلًا أولًا من لوحة العملاء" />
+            )}
+          </section>
+        )}
 
-      {selectedClient && (
-        <div
-          style={{
-            background: '#12264d',
-            padding: '20px',
-            borderRadius: '12px',
-            marginBottom: '20px',
-            border: '1px solid rgba(255,255,255,0.08)'
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '14px',
-              gap: '12px',
-              flexWrap: 'wrap'
-            }}
-          >
-            <h2 style={{ margin: 0 }}>تفاصيل العميل</h2>
+        {currentPage === 'reports' && (
+          <section className="saas-page-panel">
+            <h2>Reports</h2>
+            <div className="saas-grid-4">
+              <InfoBox label="إجمالي العملاء" value={total} />
+              <InfoBox label="إجمالي قيمة الصفقات" value={`${formatMoney(totalDealValue)} ريال`} />
+              <InfoBox label="إجمالي الصفقات المغلقة" value={wonCount} />
+              <InfoBox label="إجمالي الصفقات الضائعة" value={lostCount} />
+            </div>
+          </section>
+        )}
 
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <a
-                href={`https://wa.me/${selectedClient.phone}?text=${buildWhatsappMessage(selectedClient)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="wa-btn"
-              >
-                واتساب ذكي
-              </a>
+        {currentPage === 'settings' && (
+          <section className="saas-page-panel">
+            <h2>Settings</h2>
+            <EmptyState text="هذه الصفحة جاهزة للتطوير لاحقًا" />
+          </section>
+        )}
+      </main>
 
-              <button
-                onClick={() => setSelectedClient(null)}
-                style={{
-                  background: '#ff5c5c',
-                  border: 'none',
-                  color: 'white',
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  cursor: 'pointer'
-                }}
-              >
+      {showAddPanel && (
+        <div className="drawer-overlay" onClick={() => setShowAddPanel(false)}>
+          <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <h2>إضافة عميل جديد</h2>
+              <button className="danger-btn small-btn" onClick={() => setShowAddPanel(false)}>
                 إغلاق
               </button>
             </div>
-          </div>
 
-          <div style={{ lineHeight: '2', marginBottom: '20px' }}>
-            <div><strong>اسم الشركة:</strong> {selectedClient.company}</div>
-            <div><strong>رقم الجوال:</strong> {selectedClient.phone}</div>
-            <div><strong>الخدمة:</strong> {selectedClient.service || '-'}</div>
-            <div><strong>الحالة:</strong> {selectedClient.status}</div>
-            <div><strong>المرحلة:</strong> {selectedClient.stage}</div>
-            <div><strong>درجة العميل:</strong> {selectedClient.temperature}</div>
-            <div><strong>حالة الصفقة:</strong> {getDealLabel(selectedClient.dealStatus)}</div>
-            <div><strong>حالة القرار:</strong> {getDecisionLabel(selectedClient.decisionStatus)}</div>
-            <div><strong>تاريخ التسجيل:</strong> {formatDate(selectedClient.createdAt)}</div>
-            <div><strong>آخر نشاط:</strong> {formatDate(selectedClient.lastActivityAt)}</div>
-            <div><strong>المتابعة القادمة:</strong> {selectedClient.nextFollowUpDate || '-'}</div>
-            <div><strong>الإغلاق المتوقع:</strong> {selectedClient.expectedCloseDate || '-'}</div>
-          </div>
-
-          <div
-            style={{
-              background: '#0f2347',
-              padding: '16px',
-              borderRadius: '10px',
-              marginBottom: '16px'
-            }}
-          >
-            <h3 style={{ marginTop: 0 }}>التقرير المالي</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '10px' }}>
-              <div className="stat-card">
-                <span>عرض السعر</span>
-                <strong>{formatMoney(selectedClientQuote)}</strong>
-              </div>
-              <div className="stat-card">
-                <span>المدفوع</span>
-                <strong>{formatMoney(selectedClientPaid)}</strong>
-              </div>
-              <div className="stat-card">
-                <span>المتبقي</span>
-                <strong>{formatMoney(selectedClientRemaining)}</strong>
-              </div>
-              <div className="stat-card">
-                <span>عدد المهام</span>
-                <strong>{clientTasks.length}</strong>
-              </div>
-              <div className="stat-card">
-                <span>عدد الملاحظات</span>
-                <strong>{clientNotes.length}</strong>
-              </div>
-              <div className="stat-card">
-                <span>عدد الملفات</span>
-                <strong>{clientFiles.length}</strong>
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              marginTop: '20px',
-              background: '#0f2347',
-              padding: '16px',
-              borderRadius: '10px',
-              marginBottom: '16px'
-            }}
-          >
-            <h3 style={{ marginTop: 0 }}>المهام والمتابعات</h3>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                gap: '10px',
-                marginBottom: '14px'
-              }}
-            >
+            <div className="saas-grid-2">
               <input
-                placeholder="اسم المهمة"
-                value={taskForm.title}
-                onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+                placeholder="اسم الشركة"
+                value={newLead.company}
+                onChange={(e) => setNewLead({ ...newLead, company: e.target.value })}
               />
-
               <input
-                type="date"
-                value={taskForm.dueDate}
-                onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+                placeholder="رقم الجوال"
+                value={newLead.phone}
+                onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })}
               />
-
               <input
-                placeholder="المسؤول"
-                value={taskForm.owner}
-                onChange={(e) => setTaskForm({ ...taskForm, owner: e.target.value })}
+                placeholder="الخدمة المطلوبة"
+                value={newLead.service}
+                onChange={(e) => setNewLead({ ...newLead, service: e.target.value })}
               />
-
-              <select
-                value={taskForm.status}
-                onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value })}
-              >
-                {TASK_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              onClick={addTask}
-              style={{
-                background: '#1d4ed8',
-                border: 'none',
-                color: 'white',
-                padding: '10px 16px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                marginBottom: '16px'
-              }}
-            >
-              ➕ إضافة مهمة
-            </button>
-
-            <div style={{ display: 'grid', gap: '10px' }}>
-              {clientTasks.length === 0 ? (
-                <div style={{ opacity: 0.7 }}>لا توجد مهام لهذا العميل</div>
-              ) : (
-                clientTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    style={{
-                      background: '#16315f',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: `1px solid ${getTaskStatusColor(task)}`
-                    }}
-                  >
-                    <div><strong>المهمة:</strong> {task.title}</div>
-                    <div><strong>التاريخ:</strong> {task.dueDate}</div>
-                    <div><strong>المسؤول:</strong> {task.owner}</div>
-                    <div><strong>الحالة:</strong> {task.status}</div>
-
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-                      <select
-                        value={task.status}
-                        onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                      >
-                        {TASK_STATUSES.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-
-                      <button onClick={() => deleteTask(task.id)}>🗑️ حذف</button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div
-            style={{
-              marginTop: '20px',
-              background: '#0f2347',
-              padding: '16px',
-              borderRadius: '10px',
-              marginBottom: '16px'
-            }}
-          >
-            <h3 style={{ marginTop: 0 }}>الملاحظات</h3>
-
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
               <input
-                placeholder="اكتب ملاحظة"
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                style={{ flex: 1 }}
-              />
-              <button onClick={addNote}>➕ إضافة ملاحظة</button>
-            </div>
-
-            <div style={{ display: 'grid', gap: '10px' }}>
-              {clientNotes.length === 0 ? (
-                <div style={{ opacity: 0.7 }}>لا توجد ملاحظات</div>
-              ) : (
-                clientNotes.map((note) => (
-                  <div
-                    key={note.id}
-                    style={{
-                      background: '#16315f',
-                      padding: '12px',
-                      borderRadius: '8px'
-                    }}
-                  >
-                    <div>{note.text}</div>
-                    <div style={{ opacity: 0.7, marginTop: '6px', fontSize: '13px' }}>
-                      {formatDate(note.createdAt)}
-                    </div>
-                    <button style={{ marginTop: '8px' }} onClick={() => deleteNote(note.id)}>
-                      🗑️ حذف
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div
-            style={{
-              marginTop: '20px',
-              background: '#0f2347',
-              padding: '16px',
-              borderRadius: '10px',
-              marginBottom: '16px'
-            }}
-          >
-            <h3 style={{ marginTop: 0 }}>الملفات</h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '10px', marginBottom: '12px' }}>
-              <select
-                value={fileForm.type}
-                onChange={(e) => setFileForm({ ...fileForm, type: e.target.value })}
-              >
-                <option value="عرض سعر">عرض سعر</option>
-                <option value="عقد">عقد</option>
-                <option value="ملف آخر">ملف آخر</option>
-              </select>
-
-              <input
-                placeholder="رابط الملف"
-                value={fileForm.url}
-                onChange={(e) => setFileForm({ ...fileForm, url: e.target.value })}
-              />
-
-              <button onClick={addFile}>➕ إضافة ملف</button>
-            </div>
-
-            <div style={{ display: 'grid', gap: '10px' }}>
-              {clientFiles.length === 0 ? (
-                <div style={{ opacity: 0.7 }}>لا توجد ملفات</div>
-              ) : (
-                clientFiles.map((file) => (
-                  <div
-                    key={file.id}
-                    style={{
-                      background: '#16315f',
-                      padding: '12px',
-                      borderRadius: '8px'
-                    }}
-                  >
-                    <div><strong>النوع:</strong> {file.type}</div>
-                    <div style={{ marginTop: '8px' }}>
-                      <a href={file.url} target="_blank" rel="noreferrer">
-                        فتح الملف
-                      </a>
-                    </div>
-                    <div style={{ opacity: 0.7, marginTop: '6px', fontSize: '13px' }}>
-                      {formatDate(file.createdAt)}
-                    </div>
-                    <button style={{ marginTop: '8px' }} onClick={() => deleteFile(file.id)}>
-                      🗑️ حذف
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div
-            style={{
-              marginTop: '20px',
-              background: '#0f2347',
-              padding: '16px',
-              borderRadius: '10px'
-            }}
-          >
-            <h3 style={{ marginTop: 0 }}>الدفعات</h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '10px', marginBottom: '12px' }}>
-              <input
-                placeholder="اسم الدفعة"
-                value={paymentForm.title}
-                onChange={(e) => setPaymentForm({ ...paymentForm, title: e.target.value })}
-              />
-
-              <input
-                placeholder="المبلغ"
+                placeholder="عرض السعر"
                 type="number"
-                value={paymentForm.amount}
-                onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                value={newLead.quoteAmount}
+                onChange={(e) => setNewLead({ ...newLead, quoteAmount: e.target.value })}
               />
-
               <input
                 type="date"
-                value={paymentForm.date}
-                onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
+                value={newLead.nextFollowUpDate}
+                onChange={(e) => setNewLead({ ...newLead, nextFollowUpDate: e.target.value })}
+              />
+              <input
+                type="date"
+                value={newLead.expectedCloseDate}
+                onChange={(e) => setNewLead({ ...newLead, expectedCloseDate: e.target.value })}
               />
 
               <select
-                value={paymentForm.status}
-                onChange={(e) => setPaymentForm({ ...paymentForm, status: e.target.value })}
+                value={newLead.temperature}
+                onChange={(e) => setNewLead({ ...newLead, temperature: e.target.value })}
               >
-                {PAYMENT_STATUSES.map((status) => (
+                {TEMPERATURES.map((temp) => (
+                  <option key={temp} value={temp}>
+                    {temp}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={newLead.stage}
+                onChange={(e) => setNewLead({ ...newLead, stage: e.target.value })}
+              >
+                {STAGES.map((stage) => (
+                  <option key={stage} value={stage}>
+                    {stage}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={newLead.dealStatus}
+                onChange={(e) => setNewLead({ ...newLead, dealStatus: e.target.value })}
+              >
+                {DEAL_STATUSES.map((status) => (
                   <option key={status} value={status}>
                     {status}
                   </option>
                 ))}
               </select>
 
-              <button onClick={addPayment}>➕ إضافة دفعة</button>
+              <select
+                value={newLead.decisionStatus}
+                onChange={(e) => setNewLead({ ...newLead, decisionStatus: e.target.value })}
+              >
+                {DECISION_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div style={{ display: 'grid', gap: '10px' }}>
-              {clientPayments.length === 0 ? (
-                <div style={{ opacity: 0.7 }}>لا توجد دفعات</div>
-              ) : (
-                clientPayments.map((payment) => (
-                  <div
-                    key={payment.id}
-                    style={{
-                      background: '#16315f',
-                      padding: '12px',
-                      borderRadius: '8px'
-                    }}
-                  >
-                    <div><strong>اسم الدفعة:</strong> {payment.title}</div>
-                    <div><strong>المبلغ:</strong> {formatMoney(payment.amount)} ريال</div>
-                    <div><strong>التاريخ:</strong> {payment.date}</div>
-                    <div><strong>الحالة:</strong> {payment.status}</div>
-
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-                      <select
-                        value={payment.status}
-                        onChange={(e) => updatePaymentStatus(payment.id, e.target.value)}
-                      >
-                        {PAYMENT_STATUSES.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-
-                      <button onClick={() => deletePayment(payment.id)}>🗑️ حذف</button>
-                    </div>
-                  </div>
-                ))
-              )}
+            <div className="drawer-footer">
+              <button className="primary-btn" onClick={addLead}>
+                + حفظ العميل
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="pipeline">
-        {STAGES.map((stage) => (
-          <div key={stage} className="pipe-col">
-            <h3>{stage}</h3>
+      {selectedClient && (
+        <div className="drawer-overlay" onClick={() => setSelectedClient(null)}>
+          <div className="drawer-panel drawer-panel-wide" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <div>
+                <h2>{selectedClient.company}</h2>
+                <p className="muted-text">{selectedClient.service || '-'}</p>
+              </div>
 
-            {filteredLeads
-              .filter((item) => item.stage === stage)
-              .map((lead) => (
-                <div
-                  key={lead.id}
-                  className="card"
-                  onClick={() => setSelectedClient(lead)}
-                  style={{
-                    cursor: 'pointer',
-                    borderLeft: lead.temperature === 'Hot' ? '4px solid #dc2626' : '4px solid #ca8a04'
-                  }}
+              <div className="saas-inline-actions">
+                <a
+                  href={`https://wa.me/${selectedClient.phone}?text=${buildWhatsAppMessage(selectedClient)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="wa-btn"
                 >
-                  {editingId === lead.id ? (
-                    <>
-                      <input
-                        value={lead.company}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => updateLeadField(lead.id, 'company', e.target.value)}
-                      />
+                  واتساب ذكي
+                </a>
+                <button className="danger-btn small-btn" onClick={() => setSelectedClient(null)}>
+                  إغلاق
+                </button>
+              </div>
+            </div>
 
-                      <input
-                        value={lead.phone}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => updateLeadField(lead.id, 'phone', e.target.value)}
-                      />
-
-                      <input
-                        value={lead.service || ''}
-                        placeholder="الخدمة"
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => updateLeadField(lead.id, 'service', e.target.value)}
-                      />
-
-                      <input
-                        type="number"
-                        value={lead.quoteAmount || 0}
-                        placeholder="عرض السعر"
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => updateLeadField(lead.id, 'quoteAmount', e.target.value)}
-                      />
-
-                      <input
-                        type="date"
-                        value={lead.nextFollowUpDate || ''}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => updateLeadField(lead.id, 'nextFollowUpDate', e.target.value)}
-                      />
-
-                      <select
-                        value={lead.dealStatus || 'Open'}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => updateLeadField(lead.id, 'dealStatus', e.target.value)}
-                      >
-                        {DEAL_STATUSES.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-
-                      <select
-                        value={lead.decisionStatus || 'Pending'}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => updateLeadField(lead.id, 'decisionStatus', e.target.value)}
-                      >
-                        {DECISION_STATUSES.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-
-                      <div className="actions">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            updateLead(lead)
-                          }}
-                        >
-                          💾
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setEditingId(null)
-                          }}
-                        >
-                          ✖
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <b>{lead.company}</b>
-
-                      <div style={{ marginTop: '8px', fontSize: '13px', opacity: 0.9 }}>
-                        <strong>{lead.stage}</strong>
-                      </div>
-
-                      <div style={{ marginTop: '8px' }}>الخدمة: {lead.service || '-'}</div>
-                      <div>حالة الصفقة: {getDealLabel(lead.dealStatus)}</div>
-                      <div>حالة القرار: {getDecisionLabel(lead.decisionStatus)}</div>
-                      <div>عرض السعر: {formatMoney(lead.quoteAmount)} ريال</div>
-                      <div>المدفوع: {formatMoney(lead.paidAmount)} ريال</div>
-                      <div>المتبقي: {formatMoney(lead.remainingAmount)} ريال</div>
-
-                      <div style={{ marginTop: '8px', fontSize: '13px', opacity: 0.8 }}>
-                        📅 {formatDate(lead.createdAt)}
-                      </div>
-
-                      <div style={{ marginTop: '8px', fontSize: '13px', opacity: 0.8 }}>
-                        📌 متابعة: {lead.nextFollowUpDate || '-'}
-                      </div>
-
-                      <div style={{ marginTop: '8px' }}>
-                        <a
-                          href={`https://wa.me/${lead.phone}?text=${buildWhatsappMessage(lead)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="wa-btn"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          واتساب ذكي
-                        </a>
-                      </div>
-
-                      <div className="actions">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setEditingId(lead.id)
-                          }}
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            deleteLead(lead.id)
-                          }}
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </>
-                  )}
-
-                  <div style={{ marginTop: '10px' }}>
-                    <select
-                      value={lead.stage}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={async (e) => {
-                        const value = e.target.value
-                        updateStageLocally(lead.id, value)
-                        await saveQuickStage(lead.id, value)
-                      }}
-                    >
-                      {STAGES.map((stageOption) => (
-                        <option key={stageOption} value={stageOption}>
-                          {stageOption}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={lead.temperature}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={async (e) => {
-                        const value = e.target.value
-                        updateTempLocally(lead.id, value)
-                        await saveQuickTemp(lead.id, value)
-                      }}
-                      style={{ marginRight: '8px' }}
-                    >
-                      <option value="Hot">Hot</option>
-                      <option value="Warm">Warm</option>
-                    </select>
-                  </div>
-                </div>
+            <div className="tabs">
+              {TABS.map((tab) => (
+                <button
+                  key={tab}
+                  className={activeTab === tab ? 'active' : ''}
+                  onClick={() => setActiveTab(tab)}
+                >
+                  {tab === 'overview' && 'نظرة عامة'}
+                  {tab === 'tasks' && 'المهام'}
+                  {tab === 'notes' && 'الملاحظات'}
+                  {tab === 'files' && 'الملفات'}
+                  {tab === 'payments' && 'الدفعات'}
+                </button>
               ))}
+            </div>
+
+            {activeTab === 'overview' && (
+              <div className="saas-grid-2">
+                <InfoBox label="رقم الجوال" value={selectedClient.phone} />
+                <InfoBox label="المرحلة" value={selectedClient.stage} />
+                <InfoBox label="درجة العميل" value={selectedClient.temperature} />
+                <InfoBox label="حالة الصفقة" value={dealLabel(selectedClient.dealStatus)} />
+                <InfoBox label="حالة القرار" value={decisionLabel(selectedClient.decisionStatus)} />
+                <InfoBox label="تاريخ التسجيل" value={formatDate(selectedClient.createdAt)} />
+                <InfoBox label="آخر نشاط" value={formatDate(selectedClient.lastActivityAt)} />
+                <InfoBox label="المتابعة القادمة" value={selectedClient.nextFollowUpDate || '-'} />
+                <InfoBox label="الإغلاق المتوقع" value={selectedClient.expectedCloseDate || '-'} />
+                <InfoBox label="عرض السعر" value={`${formatMoney(selectedClientPaymentsSummary.quote)} ريال`} />
+                <InfoBox label="المدفوع" value={`${formatMoney(selectedClientPaymentsSummary.paid)} ريال`} />
+                <InfoBox label="المتبقي" value={`${formatMoney(selectedClientPaymentsSummary.remaining)} ريال`} />
+                <InfoBox label="عدد المهام" value={clientTasks.length} />
+                <InfoBox label="عدد الملاحظات" value={clientNotes.length} />
+                <InfoBox label="عدد الملفات" value={clientFiles.length} />
+              </div>
+            )}
+
+            {activeTab === 'tasks' && (
+              <>
+                <div className="saas-grid-4">
+                  <input
+                    placeholder="اسم المهمة"
+                    value={taskForm.title}
+                    onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+                  />
+                  <input
+                    type="date"
+                    value={taskForm.dueDate}
+                    onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+                  />
+                  <input
+                    placeholder="المسؤول"
+                    value={taskForm.owner}
+                    onChange={(e) => setTaskForm({ ...taskForm, owner: e.target.value })}
+                  />
+                  <select
+                    value={taskForm.status}
+                    onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value })}
+                  >
+                    {TASK_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="top-gap">
+                  <button className="primary-btn" onClick={addTask}>
+                    + إضافة مهمة
+                  </button>
+                </div>
+
+                <div className="list-block">
+                  {clientTasks.length === 0 ? (
+                    <EmptyState text="لا توجد مهام لهذا العميل" />
+                  ) : (
+                    clientTasks.map((task) => (
+                      <div key={task.id} className={`list-item ${taskStatusClass(task)}`}>
+                        <div><strong>المهمة:</strong> {task.title}</div>
+                        <div><strong>التاريخ:</strong> {task.dueDate}</div>
+                        <div><strong>المسؤول:</strong> {task.owner}</div>
+                        <div><strong>الحالة:</strong> {task.status}</div>
+
+                        <div className="saas-inline-actions top-gap">
+                          <select
+                            value={task.status}
+                            onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                          >
+                            {TASK_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button className="danger-btn small-btn" onClick={() => deleteTask(task.id)}>
+                            🗑️ حذف
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+
+            {activeTab === 'notes' && (
+              <>
+                <div className="saas-inline-actions">
+                  <input
+                    className="flex-1"
+                    placeholder="اكتب ملاحظة"
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                  />
+                  <button className="primary-btn" onClick={addNote}>
+                    + إضافة ملاحظة
+                  </button>
+                </div>
+
+                <div className="list-block">
+                  {clientNotes.length === 0 ? (
+                    <EmptyState text="لا توجد ملاحظات" />
+                  ) : (
+                    clientNotes.map((note) => (
+                      <div key={note.id} className="list-item">
+                        <div>{note.text}</div>
+                        <div className="meta-text">{formatDate(note.createdAt)}</div>
+                        <button className="danger-btn small-btn top-gap" onClick={() => deleteNote(note.id)}>
+                          🗑️ حذف
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+
+            {activeTab === 'files' && (
+              <>
+                <div className="saas-grid-4">
+                  <select
+                    value={fileForm.type}
+                    onChange={(e) => setFileForm({ ...fileForm, type: e.target.value })}
+                  >
+                    <option value="عرض سعر">عرض سعر</option>
+                    <option value="عقد">عقد</option>
+                    <option value="ملف آخر">ملف آخر</option>
+                  </select>
+
+                  <input
+                    placeholder="رابط الملف"
+                    value={fileForm.url}
+                    onChange={(e) => setFileForm({ ...fileForm, url: e.target.value })}
+                  />
+
+                  <button className="primary-btn" onClick={addFile}>
+                    + إضافة ملف
+                  </button>
+                </div>
+
+                <div className="list-block">
+                  {clientFiles.length === 0 ? (
+                    <EmptyState text="لا توجد ملفات" />
+                  ) : (
+                    clientFiles.map((file) => (
+                      <div key={file.id} className="list-item">
+                        <div><strong>النوع:</strong> {file.type}</div>
+                        <div className="top-gap">
+                          <a href={file.url} target="_blank" rel="noreferrer">
+                            فتح الملف
+                          </a>
+                        </div>
+                        <div className="meta-text">{formatDate(file.createdAt)}</div>
+                        <button className="danger-btn small-btn top-gap" onClick={() => deleteFile(file.id)}>
+                          🗑️ حذف
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+
+            {activeTab === 'payments' && (
+              <>
+                <div className="saas-grid-4">
+                  <input
+                    placeholder="اسم الدفعة"
+                    value={paymentForm.title}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, title: e.target.value })}
+                  />
+                  <input
+                    placeholder="المبلغ"
+                    type="number"
+                    value={paymentForm.amount}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                  />
+                  <input
+                    type="date"
+                    value={paymentForm.date}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
+                  />
+                  <select
+                    value={paymentForm.status}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, status: e.target.value })}
+                  >
+                    {PAYMENT_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="top-gap">
+                  <button className="primary-btn" onClick={addPayment}>
+                    + إضافة دفعة
+                  </button>
+                </div>
+
+                <div className="list-block">
+                  {clientPayments.length === 0 ? (
+                    <EmptyState text="لا توجد دفعات" />
+                  ) : (
+                    clientPayments.map((payment) => (
+                      <div key={payment.id} className="list-item">
+                        <div><strong>اسم الدفعة:</strong> {payment.title}</div>
+                        <div><strong>المبلغ:</strong> {formatMoney(payment.amount)} ريال</div>
+                        <div><strong>التاريخ:</strong> {payment.date}</div>
+                        <div><strong>الحالة:</strong> {payment.status}</div>
+
+                        <div className="saas-inline-actions top-gap">
+                          <select
+                            value={payment.status}
+                            onChange={(e) => updatePaymentStatus(payment.id, e.target.value)}
+                          >
+                            {PAYMENT_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button className="danger-btn small-btn" onClick={() => deletePayment(payment.id)}>
+                            🗑️ حذف
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
