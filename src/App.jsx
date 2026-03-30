@@ -107,7 +107,11 @@ const AR = {
   allTasks: 'كل المهام',
   allStages: 'كل المراحل',
   allTemps: 'كل الدرجات',
-  allDeals: 'كل حالات الصفقة'
+  allDeals: 'كل حالات الصفقة',
+
+  lightMode: 'الوضع الفاتح',
+  darkMode: 'الوضع الداكن',
+  nextDevelopment: 'التطوير القادم'
 }
 
 const emptyLeadForm = {
@@ -335,7 +339,15 @@ function Sidebar({ currentPage, setCurrentPage }) {
   )
 }
 
-function Topbar({ searchTerm, setSearchTerm, openAddPanel, currentPage }) {
+function Topbar({
+  searchTerm,
+  setSearchTerm,
+  openAddPanel,
+  currentPage,
+  theme,
+  toggleTheme,
+  showNextDevelopment
+}) {
   return (
     <header className="saas-topbar">
       <div>
@@ -357,6 +369,15 @@ function Topbar({ searchTerm, setSearchTerm, openAddPanel, currentPage }) {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
+
+        <button className="secondary-btn" onClick={toggleTheme}>
+          {theme === 'dark' ? `☀️ ${AR.lightMode}` : `🌙 ${AR.darkMode}`}
+        </button>
+
+        <button className="secondary-btn" onClick={showNextDevelopment}>
+          🚀 {AR.nextDevelopment}
+        </button>
+
         <button className="primary-btn" onClick={openAddPanel}>
           + {AR.addClient}
         </button>
@@ -391,6 +412,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState(null)
+  const [theme, setTheme] = useState(localStorage.getItem('tamakan-theme') || 'dark')
 
   const [leads, setLeads] = useState([])
   const [selectedClient, setSelectedClient] = useState(null)
@@ -428,45 +450,30 @@ export default function App() {
   const [clientActivity, setClientActivity] = useState([])
 
   useEffect(() => {
+    document.body.setAttribute('data-theme', theme)
+    localStorage.setItem('tamakan-theme', theme)
+  }, [theme])
+
+  function toggleTheme() {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+  }
+
+  function showNextDevelopment() {
+    alert(
+      'التطوير القادم المقترح:\n\n' +
+      '1) صلاحيات المستخدمين\n' +
+      '2) رفع ملفات حقيقي\n' +
+      '3) إشعارات داخل النظام\n' +
+      '4) ربط واتساب احترافي\n' +
+      '5) تقارير أذكى لكل موظف'
+    )
+  }
+
+  useEffect(() => {
     async function seedIfNeeded() {
       const leadsRef = collection(db, 'leads')
       const snapshot = await getDocs(leadsRef)
       if (!snapshot.empty) return
-
-      const oldLocal = localStorage.getItem('leads')
-      if (oldLocal) {
-        try {
-          const parsed = JSON.parse(oldLocal)
-          if (Array.isArray(parsed) && parsed.length) {
-            for (const item of parsed) {
-              const quoteAmount = Number(item.quoteAmount || 0)
-              const paidAmount = Number(item.paidAmount || 0)
-              await addDoc(leadsRef, {
-                company: item.company || '',
-                phone: item.phone || '',
-                service: item.service || '',
-                temperature: item.temperature || 'Warm',
-                stage: item.stage || 'Lead',
-                status: item.status || 'جديد',
-                dealStatus: item.dealStatus || 'Open',
-                decisionStatus: item.decisionStatus || 'Pending',
-                quoteAmount,
-                paidAmount,
-                remainingAmount: Math.max(quoteAmount - paidAmount, 0),
-                expectedCloseDate: item.expectedCloseDate || '',
-                nextFollowUpDate: item.nextFollowUpDate || '',
-                lostReason: item.lostReason || '',
-                archived: item.archived || false,
-                lastActivityAt: item.lastActivityAt || Date.now(),
-                createdAt: item.createdAt || Date.now()
-              })
-            }
-            return
-          }
-        } catch (error) {
-          console.error('خطأ في قراءة البيانات القديمة:', error)
-        }
-      }
 
       await addDoc(leadsRef, sampleLead)
     }
@@ -1024,6 +1031,9 @@ export default function App() {
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           openAddPanel={() => setShowAddPanel(true)}
+          theme={theme}
+          toggleTheme={toggleTheme}
+          showNextDevelopment={showNextDevelopment}
         />
 
         {currentPage !== 'archived' && (
