@@ -4,6 +4,7 @@ import { initializeApp } from 'firebase/app'
 import {
   getFirestore,
   collection,
+  collectionGroup,
   addDoc,
   deleteDoc,
   doc,
@@ -134,6 +135,35 @@ function decisionLabel(status) {
   return 'بانتظار القرار'
 }
 
+function stageLabel(stage) {
+  if (stage === 'Lead') return 'عميل محتمل'
+  if (stage === 'Contacted') return 'تم التواصل'
+  if (stage === 'Meeting') return 'اجتماع'
+  if (stage === 'Proposal') return 'عرض سعر'
+  if (stage === 'Won') return 'مغلقة'
+  return stage
+}
+
+function tempLabel(temp) {
+  if (temp === 'Hot') return 'حار'
+  if (temp === 'Warm') return 'دافئ'
+  return temp
+}
+
+function taskStatusLabel(status) {
+  if (status === 'Pending') return 'معلقة'
+  if (status === 'In Progress') return 'قيد التنفيذ'
+  if (status === 'Done') return 'مكتملة'
+  return status
+}
+
+function paymentStatusLabel(status) {
+  if (status === 'Pending') return 'معلقة'
+  if (status === 'Paid') return 'مدفوعة'
+  if (status === 'Partial') return 'مدفوعة جزئيًا'
+  return status
+}
+
 function buildWhatsAppMessage(lead) {
   const company = lead.company || 'العميل'
   const service = lead.service || 'الخدمة المطلوبة'
@@ -175,7 +205,7 @@ function buildWhatsAppMessage(lead) {
   }
 
   text += `هذه متابعة بخصوص طلبكم لخدمة ${service}.\n`
-  text += `المرحلة الحالية: ${lead.stage}\n`
+  text += `المرحلة الحالية: ${stageLabel(lead.stage)}\n`
   text += `حالة الصفقة: ${dealLabel(lead.dealStatus)}\n`
   text += `عرض السعر: ${formatMoney(quote)} ريال\n`
   text += `المدفوع: ${formatMoney(paid)} ريال\n`
@@ -186,11 +216,11 @@ function buildWhatsAppMessage(lead) {
 
 function Sidebar({ currentPage, setCurrentPage }) {
   const items = [
-    { key: 'dashboard', label: 'Dashboard' },
-    { key: 'clients', label: 'Clients' },
-    { key: 'tasks', label: 'Tasks' },
-    { key: 'reports', label: 'Reports' },
-    { key: 'settings', label: 'Settings' }
+    { key: 'dashboard', label: 'لوحة التحكم' },
+    { key: 'clients', label: 'العملاء' },
+    { key: 'tasks', label: 'المهام' },
+    { key: 'reports', label: 'التقارير' },
+    { key: 'settings', label: 'الإعدادات' }
   ]
 
   return (
@@ -223,13 +253,13 @@ function Topbar({ searchTerm, setSearchTerm, openAddPanel, currentPage }) {
     <header className="saas-topbar">
       <div>
         <h1 className="saas-page-title">
-          {currentPage === 'dashboard' && 'Dashboard'}
-          {currentPage === 'clients' && 'Clients'}
-          {currentPage === 'tasks' && 'Tasks'}
-          {currentPage === 'reports' && 'Reports'}
-          {currentPage === 'settings' && 'Settings'}
+          {currentPage === 'dashboard' && 'لوحة التحكم'}
+          {currentPage === 'clients' && 'العملاء'}
+          {currentPage === 'tasks' && 'المهام'}
+          {currentPage === 'reports' && 'التقارير'}
+          {currentPage === 'settings' && 'الإعدادات'}
         </h1>
-        <p className="saas-page-subtitle">إدارة العملاء والصفقات والمتابعات</p>
+        <p className="saas-page-subtitle">إدارة العملاء والصفقات والمتابعات | Client & Sales Management</p>
       </div>
 
       <div className="saas-topbar-actions">
@@ -287,6 +317,7 @@ export default function App() {
   const [newLead, setNewLead] = useState(emptyLeadForm)
 
   const [clientTasks, setClientTasks] = useState([])
+  const [allTasks, setAllTasks] = useState([])
   const [taskForm, setTaskForm] = useState(emptyTaskForm)
 
   const [clientNotes, setClientNotes] = useState([])
@@ -424,6 +455,30 @@ export default function App() {
       unsubscribers.forEach((fn) => fn())
     }
   }, [selectedClient])
+
+  useEffect(() => {
+    const q = query(collectionGroup(db, 'tasks'), orderBy('createdAt', 'desc'))
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const tasksData = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data()
+        const pathParts = docSnap.ref.path.split('/')
+        const clientId = pathParts[1]
+        const client = leads.find((lead) => lead.id === clientId)
+
+        return {
+          id: docSnap.id,
+          clientId,
+          clientName: client?.company || 'عميل غير معروف',
+          ...data
+        }
+      })
+
+      setAllTasks(tasksData)
+    })
+
+    return () => unsubscribe()
+  }, [leads])
 
   async function touchClient(clientId, extra = {}) {
     await updateDoc(doc(db, 'leads', clientId), {
@@ -628,26 +683,26 @@ export default function App() {
 
   function exportCsv() {
     const headers = [
-      'اسم الشركة',
-      'الجوال',
-      'الخدمة',
-      'المرحلة',
-      'حالة الصفقة',
-      'حالة القرار',
-      'عرض السعر',
-      'المدفوع',
-      'المتبقي',
-      'تاريخ التسجيل',
-      'المتابعة القادمة'
+      'اسم الشركة / Company',
+      'رقم الجوال / Phone',
+      'الخدمة / Service',
+      'المرحلة / Stage',
+      'حالة الصفقة / Deal Status',
+      'حالة القرار / Decision Status',
+      'عرض السعر / Quote Amount',
+      'المدفوع / Paid Amount',
+      'المتبقي / Remaining Amount',
+      'تاريخ التسجيل / Created At',
+      'المتابعة القادمة / Next Follow-up'
     ]
 
     const rows = filteredLeads.map((lead) => [
       lead.company || '',
       lead.phone || '',
       lead.service || '',
-      lead.stage || '',
-      lead.dealStatus || '',
-      lead.decisionStatus || '',
+      stageLabel(lead.stage || ''),
+      dealLabel(lead.dealStatus || ''),
+      decisionLabel(lead.decisionStatus || ''),
       Number(lead.quoteAmount || 0),
       Number(lead.paidAmount || 0),
       Number(lead.remainingAmount || 0),
@@ -655,11 +710,17 @@ export default function App() {
       lead.nextFollowUpDate || ''
     ])
 
-    const csv = [headers, ...rows]
-      .map((row) => row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(','))
+    const csvContent = [headers, ...rows]
+      .map((row) =>
+        row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(',')
+      )
       .join('\n')
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const bom = '\uFEFF'
+    const blob = new Blob([bom + csvContent], {
+      type: 'text/csv;charset=utf-8;'
+    })
+
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -703,9 +764,9 @@ export default function App() {
     .filter((x) => x.dealStatus === 'Won')
     .reduce((sum, x) => sum + Number(x.quoteAmount || 0), 0)
 
-  const todayTasksCount = clientTasks.filter(isTaskToday).length
-  const overdueTasksCount = clientTasks.filter(isTaskOverdue).length
-  const doneTasksCount = clientTasks.filter((t) => t.status === 'Done').length
+  const todayTasksCount = allTasks.filter(isTaskToday).length
+  const overdueTasksCount = allTasks.filter(isTaskOverdue).length
+  const doneTasksCount = allTasks.filter((t) => t.status === 'Done').length
 
   const selectedClientPaymentsSummary = {
     quote: Number(selectedClient?.quoteAmount || 0),
@@ -725,7 +786,7 @@ export default function App() {
   }
 
   return (
-    <div className="saas-shell">
+    <div className="saas-shell" dir="rtl">
       <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
 
       <main className="saas-main">
@@ -742,7 +803,7 @@ export default function App() {
               <option value="All">كل المراحل</option>
               {STAGES.map((stage) => (
                 <option key={stage} value={stage}>
-                  {stage}
+                  {stageLabel(stage)}
                 </option>
               ))}
             </select>
@@ -751,7 +812,7 @@ export default function App() {
               <option value="All">كل الدرجات</option>
               {TEMPERATURES.map((temp) => (
                 <option key={temp} value={temp}>
-                  {temp}
+                  {tempLabel(temp)}
                 </option>
               ))}
             </select>
@@ -760,7 +821,7 @@ export default function App() {
               <option value="All">كل حالات الصفقة</option>
               {DEAL_STATUSES.map((status) => (
                 <option key={status} value={status}>
-                  {status}
+                  {dealLabel(status)}
                 </option>
               ))}
             </select>
@@ -776,13 +837,13 @@ export default function App() {
             <section className="stats-grid stats-grid-extended">
               <StatCard title="📊 إجمالي العملاء" value={total} accent="blue" />
               <StatCard title="🔎 نتائج البحث" value={filteredTotal} accent="purple" />
-              <StatCard title="🔥 Hot" value={hotCount} accent="red" />
-              <StatCard title="🟡 Warm" value={warmCount} accent="gold" />
-              <StatCard title="☎️ Contacted" value={contactedCount} accent="orange" />
-              <StatCard title="🤝 Meeting" value={meetingCount} accent="violet" />
-              <StatCard title="📄 Proposal" value={proposalCount} accent="cyan" />
-              <StatCard title="💰 Won" value={wonCount} accent="green" />
-              <StatCard title="❌ Lost" value={lostCount} accent="red" />
+              <StatCard title="🔥 حار" value={hotCount} accent="red" />
+              <StatCard title="🟡 دافئ" value={warmCount} accent="gold" />
+              <StatCard title="☎️ تم التواصل" value={contactedCount} accent="orange" />
+              <StatCard title="🤝 اجتماعات" value={meetingCount} accent="violet" />
+              <StatCard title="📄 عروض أسعار" value={proposalCount} accent="cyan" />
+              <StatCard title="💰 صفقات مغلقة" value={wonCount} accent="green" />
+              <StatCard title="❌ صفقات مفقودة" value={lostCount} accent="red" />
               <StatCard title="💵 قيمة الصفقات" value={formatMoney(totalDealValue)} accent="blue" />
               <StatCard title="✅ أرباح محققة" value={formatMoney(totalWonValue)} accent="green" />
               <StatCard title="📅 مهام اليوم" value={todayTasksCount} accent="gold" />
@@ -794,7 +855,7 @@ export default function App() {
               {STAGES.map((stage) => (
                 <div key={stage} className="saas-column">
                   <div className="saas-column-header">
-                    <h3>{stage}</h3>
+                    <h3>{stageLabel(stage)}</h3>
                     <span>{filteredLeads.filter((lead) => lead.stage === stage).length}</span>
                   </div>
 
@@ -843,7 +904,7 @@ export default function App() {
                               >
                                 {DEAL_STATUSES.map((status) => (
                                   <option key={status} value={status}>
-                                    {status}
+                                    {dealLabel(status)}
                                   </option>
                                 ))}
                               </select>
@@ -854,7 +915,7 @@ export default function App() {
                               >
                                 {DECISION_STATUSES.map((status) => (
                                   <option key={status} value={status}>
-                                    {status}
+                                    {decisionLabel(status)}
                                   </option>
                                 ))}
                               </select>
@@ -884,7 +945,7 @@ export default function App() {
                             <>
                               <div className="saas-lead-header">
                                 <strong>{lead.company}</strong>
-                                <span className="saas-stage-chip">{lead.stage}</span>
+                                <span className="saas-stage-chip">{stageLabel(lead.stage)}</span>
                               </div>
 
                               <div className="saas-lead-meta">الخدمة: {lead.service || '-'}</div>
@@ -942,7 +1003,7 @@ export default function App() {
                             >
                               {STAGES.map((stageOption) => (
                                 <option key={stageOption} value={stageOption}>
-                                  {stageOption}
+                                  {stageLabel(stageOption)}
                                 </option>
                               ))}
                             </select>
@@ -958,7 +1019,7 @@ export default function App() {
                             >
                               {TEMPERATURES.map((temp) => (
                                 <option key={temp} value={temp}>
-                                  {temp}
+                                  {tempLabel(temp)}
                                 </option>
                               ))}
                             </select>
@@ -974,34 +1035,28 @@ export default function App() {
 
         {currentPage === 'tasks' && (
           <section className="saas-page-panel">
-            <h2>مهام العميل المحدد</h2>
-            {selectedClient ? (
-              <>
-                <p className="muted-text">العميل الحالي: {selectedClient.company}</p>
-                <div className="list-block">
-                  {clientTasks.length === 0 ? (
-                    <EmptyState text="لا توجد مهام لهذا العميل" />
-                  ) : (
-                    clientTasks.map((task) => (
-                      <div key={task.id} className={`list-item ${taskStatusClass(task)}`}>
-                        <div><strong>المهمة:</strong> {task.title}</div>
-                        <div><strong>التاريخ:</strong> {task.dueDate}</div>
-                        <div><strong>المسؤول:</strong> {task.owner}</div>
-                        <div><strong>الحالة:</strong> {task.status}</div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </>
-            ) : (
-              <EmptyState text="اختر عميلًا أولًا من لوحة العملاء" />
-            )}
+            <h2>كل المهام والمتابعات</h2>
+            <div className="list-block">
+              {allTasks.length === 0 ? (
+                <EmptyState text="لا توجد مهام مسجلة" />
+              ) : (
+                allTasks.map((task) => (
+                  <div key={task.id} className={`list-item ${taskStatusClass(task)}`}>
+                    <div><strong>العميل:</strong> {task.clientName}</div>
+                    <div><strong>المهمة:</strong> {task.title}</div>
+                    <div><strong>التاريخ:</strong> {task.dueDate}</div>
+                    <div><strong>المسؤول:</strong> {task.owner}</div>
+                    <div><strong>الحالة:</strong> {taskStatusLabel(task.status)}</div>
+                  </div>
+                ))
+              )}
+            </div>
           </section>
         )}
 
         {currentPage === 'reports' && (
           <section className="saas-page-panel">
-            <h2>Reports</h2>
+            <h2>التقارير</h2>
             <div className="saas-grid-4">
               <InfoBox label="إجمالي العملاء" value={total} />
               <InfoBox label="إجمالي قيمة الصفقات" value={`${formatMoney(totalDealValue)} ريال`} />
@@ -1013,7 +1068,7 @@ export default function App() {
 
         {currentPage === 'settings' && (
           <section className="saas-page-panel">
-            <h2>Settings</h2>
+            <h2>الإعدادات</h2>
             <EmptyState text="هذه الصفحة جاهزة للتطوير لاحقًا" />
           </section>
         )}
@@ -1068,7 +1123,7 @@ export default function App() {
               >
                 {TEMPERATURES.map((temp) => (
                   <option key={temp} value={temp}>
-                    {temp}
+                    {tempLabel(temp)}
                   </option>
                 ))}
               </select>
@@ -1079,7 +1134,7 @@ export default function App() {
               >
                 {STAGES.map((stage) => (
                   <option key={stage} value={stage}>
-                    {stage}
+                    {stageLabel(stage)}
                   </option>
                 ))}
               </select>
@@ -1090,7 +1145,7 @@ export default function App() {
               >
                 {DEAL_STATUSES.map((status) => (
                   <option key={status} value={status}>
-                    {status}
+                    {dealLabel(status)}
                   </option>
                 ))}
               </select>
@@ -1101,7 +1156,7 @@ export default function App() {
               >
                 {DECISION_STATUSES.map((status) => (
                   <option key={status} value={status}>
-                    {status}
+                    {decisionLabel(status)}
                   </option>
                 ))}
               </select>
@@ -1159,8 +1214,8 @@ export default function App() {
             {activeTab === 'overview' && (
               <div className="saas-grid-2">
                 <InfoBox label="رقم الجوال" value={selectedClient.phone} />
-                <InfoBox label="المرحلة" value={selectedClient.stage} />
-                <InfoBox label="درجة العميل" value={selectedClient.temperature} />
+                <InfoBox label="المرحلة" value={stageLabel(selectedClient.stage)} />
+                <InfoBox label="درجة العميل" value={tempLabel(selectedClient.temperature)} />
                 <InfoBox label="حالة الصفقة" value={dealLabel(selectedClient.dealStatus)} />
                 <InfoBox label="حالة القرار" value={decisionLabel(selectedClient.decisionStatus)} />
                 <InfoBox label="تاريخ التسجيل" value={formatDate(selectedClient.createdAt)} />
@@ -1200,7 +1255,7 @@ export default function App() {
                   >
                     {TASK_STATUSES.map((status) => (
                       <option key={status} value={status}>
-                        {status}
+                        {taskStatusLabel(status)}
                       </option>
                     ))}
                   </select>
@@ -1221,7 +1276,7 @@ export default function App() {
                         <div><strong>المهمة:</strong> {task.title}</div>
                         <div><strong>التاريخ:</strong> {task.dueDate}</div>
                         <div><strong>المسؤول:</strong> {task.owner}</div>
-                        <div><strong>الحالة:</strong> {task.status}</div>
+                        <div><strong>الحالة:</strong> {taskStatusLabel(task.status)}</div>
 
                         <div className="saas-inline-actions top-gap">
                           <select
@@ -1230,7 +1285,7 @@ export default function App() {
                           >
                             {TASK_STATUSES.map((status) => (
                               <option key={status} value={status}>
-                                {status}
+                                {taskStatusLabel(status)}
                               </option>
                             ))}
                           </select>
@@ -1349,7 +1404,7 @@ export default function App() {
                   >
                     {PAYMENT_STATUSES.map((status) => (
                       <option key={status} value={status}>
-                        {status}
+                        {paymentStatusLabel(status)}
                       </option>
                     ))}
                   </select>
@@ -1370,7 +1425,7 @@ export default function App() {
                         <div><strong>اسم الدفعة:</strong> {payment.title}</div>
                         <div><strong>المبلغ:</strong> {formatMoney(payment.amount)} ريال</div>
                         <div><strong>التاريخ:</strong> {payment.date}</div>
-                        <div><strong>الحالة:</strong> {payment.status}</div>
+                        <div><strong>الحالة:</strong> {paymentStatusLabel(payment.status)}</div>
 
                         <div className="saas-inline-actions top-gap">
                           <select
@@ -1379,7 +1434,7 @@ export default function App() {
                           >
                             {PAYMENT_STATUSES.map((status) => (
                               <option key={status} value={status}>
-                                {status}
+                                {paymentStatusLabel(status)}
                               </option>
                             ))}
                           </select>
