@@ -32,14 +32,7 @@ const DEAL_STATUSES = ['Open', 'Won', 'Lost']
 const DECISION_STATUSES = ['Pending', 'Approved', 'Rejected', 'No Response']
 const TASK_STATUSES = ['Pending', 'In Progress', 'Done']
 const PAYMENT_STATUSES = ['Pending', 'Paid', 'Partial']
-const LOST_REASONS = [
-  'السعر',
-  'لا يوجد رد',
-  'ذهب لمنافس',
-  'تأخر القرار',
-  'تم إلغاء المشروع',
-  'سبب آخر'
-]
+const LOST_REASONS = ['السعر', 'لا يوجد رد', 'ذهب لمنافس', 'تأخر القرار', 'تم إلغاء المشروع', 'سبب آخر']
 const TABS = ['overview', 'tasks', 'notes', 'files', 'payments', 'activity']
 
 const DEFAULT_SETTINGS = {
@@ -52,30 +45,9 @@ const DEFAULT_SETTINGS = {
 }
 
 const DEFAULT_USERS = [
-  {
-    id: 'admin-1',
-    name: 'Admin',
-    email: 'admin@tamakan.com',
-    password: '123456',
-    role: 'admin',
-    active: true
-  },
-  {
-    id: 'manager-1',
-    name: 'Sales Manager',
-    email: 'manager@tamakan.com',
-    password: '123456',
-    role: 'manager',
-    active: true
-  },
-  {
-    id: 'sales-1',
-    name: 'Sales User',
-    email: 'sales@tamakan.com',
-    password: '123456',
-    role: 'sales',
-    active: true
-  }
+  { id: 'admin-1', name: 'Admin', email: 'admin@tamakan.com', password: '123456', role: 'admin', active: true },
+  { id: 'manager-1', name: 'Sales Manager', email: 'manager@tamakan.com', password: '123456', role: 'manager', active: true },
+  { id: 'sales-1', name: 'Sales User', email: 'sales@tamakan.com', password: '123456', role: 'sales', active: true }
 ]
 
 const AR = {
@@ -84,36 +56,29 @@ const AR = {
   meeting: 'اجتماع',
   proposal: 'عرض سعر',
   won: 'مغلقة',
-
   hot: 'حار',
   warm: 'دافئ',
-
   open: 'مفتوحة',
   wonDeal: 'مغلقة - ربح',
   lost: 'مغلقة - خسارة',
-
   pending: 'معلقة',
   inProgress: 'قيد التنفيذ',
   done: 'مكتملة',
-
   approved: 'موافق',
   rejected: 'مرفوض',
   noResponse: 'لا يوجد رد',
-
   dashboard: 'لوحة التحكم',
   clients: 'العملاء',
   tasks: 'المهام',
   reports: 'التقارير',
   settings: 'الإعدادات',
   archived: 'المؤرشف',
-
   addClient: 'إضافة عميل',
   notes: 'الملاحظات',
   files: 'الملفات',
   payments: 'الدفعات',
   overview: 'نظرة عامة',
   activity: 'النشاط',
-
   company: 'اسم الشركة',
   phone: 'رقم الجوال',
   service: 'الخدمة',
@@ -129,7 +94,6 @@ const AR = {
   temperature: 'درجة العميل',
   stage: 'المرحلة',
   lostReason: 'سبب الخسارة',
-
   whatsapp: 'واتساب ذكي',
   edit: 'تعديل',
   delete: 'حذف',
@@ -144,7 +108,6 @@ const AR = {
   allStages: 'كل المراحل',
   allTemps: 'كل الدرجات',
   allDeals: 'كل حالات الصفقة',
-
   lightMode: 'الوضع الفاتح',
   darkMode: 'الوضع الداكن',
   nextDevelopment: 'التطوير القادم'
@@ -492,38 +455,21 @@ function LoginScreen({ onLogin }) {
 
           <form onSubmit={submitLogin} className="auth-form">
             <div className="saas-grid-2">
-              <input
-                placeholder="البريد الإلكتروني"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <input
-                type="password"
-                placeholder="كلمة المرور"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <input placeholder="البريد الإلكتروني" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input type="password" placeholder="كلمة المرور" value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
 
             {error && <div className="empty-state top-gap">{error}</div>}
 
             <div className="drawer-footer">
-              <button className="primary-btn" type="submit">
-                دخول
-              </button>
+              <button className="primary-btn" type="submit">دخول</button>
             </div>
           </form>
 
           <div className="list-block top-gap">
-            <div className="list-item">
-              <strong>حساب الأدمن:</strong> admin@tamakan.com / 123456
-            </div>
-            <div className="list-item">
-              <strong>حساب المدير:</strong> manager@tamakan.com / 123456
-            </div>
-            <div className="list-item">
-              <strong>حساب المبيعات:</strong> sales@tamakan.com / 123456
-            </div>
+            <div className="list-item"><strong>حساب الأدمن:</strong> admin@tamakan.com / 123456</div>
+            <div className="list-item"><strong>حساب المدير:</strong> manager@tamakan.com / 123456</div>
+            <div className="list-item"><strong>حساب المبيعات:</strong> sales@tamakan.com / 123456</div>
           </div>
         </div>
       </main>
@@ -625,9 +571,7 @@ function Topbar({
           </button>
         )}
 
-        <button className="danger-btn" onClick={logout}>
-          تسجيل خروج
-        </button>
+        <button className="danger-btn" onClick={logout}>تسجيل خروج</button>
       </div>
     </header>
   )
@@ -682,12 +626,7 @@ export default function App() {
   const [clientTasks, setClientTasks] = useState([])
   const [allTasks, setAllTasks] = useState([])
   const [editingTaskId, setEditingTaskId] = useState(null)
-  const [editingTaskData, setEditingTaskData] = useState({
-    title: '',
-    dueDate: '',
-    owner: '',
-    status: 'Pending'
-  })
+  const [editingTaskData, setEditingTaskData] = useState({ title: '', dueDate: '', owner: '', status: 'Pending' })
   const [taskForm, setTaskForm] = useState(emptyTaskForm)
 
   const [clientNotes, setClientNotes] = useState([])
@@ -708,12 +647,7 @@ export default function App() {
   const [userForm, setUserForm] = useState(emptyUserForm)
   const [editingUserId, setEditingUserId] = useState(null)
 
-  const [toast, setToast] = useState({
-    open: false,
-    message: '',
-    type: 'success'
-  })
-
+  const [toast, setToast] = useState({ open: false, message: '', type: 'success' })
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     title: '',
@@ -743,26 +677,16 @@ export default function App() {
 
   useEffect(() => {
     if (!toast.open) return
-    const timer = setTimeout(() => {
-      closeToast()
-    }, 3000)
+    const timer = setTimeout(() => closeToast(), 3000)
     return () => clearTimeout(timer)
   }, [toast.open])
 
   function showToast(message, type = 'success') {
-    setToast({
-      open: true,
-      message,
-      type
-    })
+    setToast({ open: true, message, type })
   }
 
   function closeToast() {
-    setToast({
-      open: false,
-      message: '',
-      type: 'success'
-    })
+    setToast({ open: false, message: '', type: 'success' })
   }
 
   function openConfirmDialog({
@@ -801,10 +725,7 @@ export default function App() {
   }
 
   function showNextDevelopment() {
-    showToast(
-      'التطوير القادم: Audit Log أقوى + Firebase Auth + تحسين إدارة الملفات لاحقًا',
-      'success'
-    )
+    showToast('التطوير القادم: Audit Log أقوى + Firebase Auth + تحسين إدارة الملفات لاحقًا', 'success')
   }
 
   function loginUser(user) {
@@ -833,10 +754,7 @@ export default function App() {
       await seedIfNeeded()
 
       const unsubscribe = onSnapshot(collection(db, 'leads'), (snapshot) => {
-        const data = snapshot.docs.map((item) => ({
-          id: item.id,
-          ...item.data()
-        }))
+        const data = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
         setLeads(data)
         setLoading(false)
 
@@ -869,43 +787,21 @@ export default function App() {
     const unsubscribers = []
 
     const tasksQ = query(collection(db, 'leads', selectedClient.id, 'tasks'), orderBy('createdAt', 'desc'))
-    unsubscribers.push(
-      onSnapshot(tasksQ, (snapshot) => {
-        setClientTasks(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
-      })
-    )
+    unsubscribers.push(onSnapshot(tasksQ, (snapshot) => setClientTasks(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))))
 
     const notesQ = query(collection(db, 'leads', selectedClient.id, 'notes'), orderBy('createdAt', 'desc'))
-    unsubscribers.push(
-      onSnapshot(notesQ, (snapshot) => {
-        setClientNotes(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
-      })
-    )
+    unsubscribers.push(onSnapshot(notesQ, (snapshot) => setClientNotes(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))))
 
     const filesQ = query(collection(db, 'leads', selectedClient.id, 'files'), orderBy('createdAt', 'desc'))
-    unsubscribers.push(
-      onSnapshot(filesQ, (snapshot) => {
-        setClientFiles(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
-      })
-    )
+    unsubscribers.push(onSnapshot(filesQ, (snapshot) => setClientFiles(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))))
 
     const paymentsQ = query(collection(db, 'leads', selectedClient.id, 'payments'), orderBy('createdAt', 'desc'))
-    unsubscribers.push(
-      onSnapshot(paymentsQ, (snapshot) => {
-        setClientPayments(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
-      })
-    )
+    unsubscribers.push(onSnapshot(paymentsQ, (snapshot) => setClientPayments(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))))
 
     const activityQ = query(collection(db, 'leads', selectedClient.id, 'activity'), orderBy('createdAt', 'desc'))
-    unsubscribers.push(
-      onSnapshot(activityQ, (snapshot) => {
-        setClientActivity(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
-      })
-    )
+    unsubscribers.push(onSnapshot(activityQ, (snapshot) => setClientActivity(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))))
 
-    return () => {
-      unsubscribers.forEach((fn) => fn())
-    }
+    return () => unsubscribers.forEach((fn) => fn())
   }, [selectedClient])
 
   useEffect(() => {
@@ -928,7 +824,6 @@ export default function App() {
           visibleLeads.map(async (lead) => {
             const tasksRef = collection(db, 'leads', lead.id, 'tasks')
             const snapshot = await getDocs(tasksRef)
-
             return snapshot.docs.map((docSnap) => ({
               id: docSnap.id,
               clientId: lead.id,
@@ -938,10 +833,7 @@ export default function App() {
           })
         )
 
-        const mergedTasks = tasksResults
-          .flat()
-          .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
-
+        const mergedTasks = tasksResults.flat().sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
         if (isMounted) setAllTasks(mergedTasks)
       } catch (error) {
         console.error('خطأ في تحميل كل المهام:', error)
@@ -949,7 +841,6 @@ export default function App() {
     }
 
     if (currentUser) loadAllTasks()
-
     return () => {
       isMounted = false
     }
@@ -984,8 +875,7 @@ export default function App() {
     })
 
     const current = leads.find((x) => x.id === clientId)
-    const quoteAmount =
-      quoteOverride !== null ? Number(quoteOverride || 0) : Number(current?.quoteAmount || 0)
+    const quoteAmount = quoteOverride !== null ? Number(quoteOverride || 0) : Number(current?.quoteAmount || 0)
 
     await updateDoc(doc(db, 'leads', clientId), {
       paidAmount: paid,
@@ -1028,7 +918,6 @@ export default function App() {
     })
 
     await logActivity(newDoc.id, 'إنشاء العميل', `تم إنشاء العميل ${newLead.company}`)
-
     setNewLead(emptyLeadForm)
     setShowAddPanel(false)
     showToast('تمت إضافة العميل بنجاح', 'success')
@@ -1053,10 +942,7 @@ export default function App() {
 
   async function archiveLead(id) {
     const lead = leads.find((x) => x.id === id)
-    await updateDoc(doc(db, 'leads', id), {
-      archived: true,
-      lastActivityAt: Date.now()
-    })
+    await updateDoc(doc(db, 'leads', id), { archived: true, lastActivityAt: Date.now() })
     await logActivity(id, 'أرشفة العميل', `تمت أرشفة العميل ${lead?.company || ''}`)
 
     if (selectedClient?.id === id) {
@@ -1067,10 +953,7 @@ export default function App() {
 
   async function restoreLead(id) {
     const lead = leads.find((x) => x.id === id)
-    await updateDoc(doc(db, 'leads', id), {
-      archived: false,
-      lastActivityAt: Date.now()
-    })
+    await updateDoc(doc(db, 'leads', id), { archived: false, lastActivityAt: Date.now() })
     await logActivity(id, 'استرجاع العميل', `تم استرجاع العميل ${lead?.company || ''}`)
   }
 
@@ -1087,10 +970,7 @@ export default function App() {
   }
 
   async function saveQuickField(id, field, value) {
-    await updateDoc(doc(db, 'leads', id), {
-      [field]: value,
-      lastActivityAt: Date.now()
-    })
+    await updateDoc(doc(db, 'leads', id), { [field]: value, lastActivityAt: Date.now() })
     await logActivity(id, 'تحديث سريع', `تم تحديث ${field} إلى ${value}`)
   }
 
@@ -1113,10 +993,7 @@ export default function App() {
 
     await touchClient(selectedClient.id)
     await logActivity(selectedClient.id, 'إضافة مهمة', `تمت إضافة مهمة: ${taskForm.title}`)
-    setTaskForm({
-      ...emptyTaskForm,
-      owner: settings.defaultTaskOwner || currentUser?.name || ''
-    })
+    setTaskForm({ ...emptyTaskForm, owner: settings.defaultTaskOwner || currentUser?.name || '' })
     setCurrentPage('tasks')
     showToast('تمت إضافة المهمة بنجاح', 'success')
   }
@@ -1145,12 +1022,7 @@ export default function App() {
     await touchClient(clientId)
     await logActivity(clientId, 'تعديل مهمة', `تم تعديل مهمة: ${editingTaskData.title}`)
     setEditingTaskId(null)
-    setEditingTaskData({
-      title: '',
-      dueDate: '',
-      owner: '',
-      status: 'Pending'
-    })
+    setEditingTaskData({ title: '', dueDate: '', owner: '', status: 'Pending' })
     showToast('تم تعديل المهمة', 'success')
   }
 
@@ -1236,11 +1108,7 @@ export default function App() {
     })
 
     await touchClient(selectedClient.id)
-    await logActivity(
-      selectedClient.id,
-      'إضافة دفعة',
-      `دفعة: ${paymentForm.title} - ${paymentForm.amount} ${settings.currency}`
-    )
+    await logActivity(selectedClient.id, 'إضافة دفعة', `دفعة: ${paymentForm.title} - ${paymentForm.amount} ${settings.currency}`)
     await recalcPayments(selectedClient.id)
     setPaymentForm(emptyPaymentForm)
     showToast('تمت إضافة الدفعة بنجاح', 'success')
@@ -1300,10 +1168,7 @@ export default function App() {
       .map((row) => row.map((val) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))
       .join('\n')
 
-    const blob = new Blob(['\uFEFF' + csv], {
-      type: 'text/csv;charset=utf-8;'
-    })
-
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = 'tamakan-report.csv'
@@ -1318,9 +1183,7 @@ export default function App() {
       return
     }
 
-    const exists = users.some(
-      (user) => user.email.trim().toLowerCase() === userForm.email.trim().toLowerCase()
-    )
+    const exists = users.some((user) => user.email.trim().toLowerCase() === userForm.email.trim().toLowerCase())
 
     if (exists) {
       showToast('هذا البريد مستخدم مسبقًا', 'error')
@@ -1406,9 +1269,7 @@ export default function App() {
   const ownerOptions = useMemo(() => {
     const map = new Map()
     activeLeads.forEach((lead) => {
-      if (lead.ownerId) {
-        map.set(lead.ownerId, lead.ownerName || 'بدون اسم')
-      }
+      if (lead.ownerId) map.set(lead.ownerId, lead.ownerName || 'بدون اسم')
     })
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
   }, [activeLeads])
@@ -1439,12 +1300,7 @@ export default function App() {
   const filteredArchivedLeads = useMemo(() => {
     return archivedLeads.filter((lead) => {
       const q = searchTerm.trim().toLowerCase()
-      return (
-        !q ||
-        (lead.company || '').toLowerCase().includes(q) ||
-        (lead.phone || '').toLowerCase().includes(q) ||
-        (lead.service || '').toLowerCase().includes(q)
-      )
+      return !q || (lead.company || '').toLowerCase().includes(q) || (lead.phone || '').toLowerCase().includes(q) || (lead.service || '').toLowerCase().includes(q)
     })
   }, [archivedLeads, searchTerm])
 
@@ -1457,21 +1313,14 @@ export default function App() {
 
   const total = activeLeads.length
   const filteredTotal = filteredLeads.length
-  const hotCount = activeLeads.filter((x) => x.temperature === 'Hot').length
-  const warmCount = activeLeads.filter((x) => x.temperature === 'Warm').length
-  const contactedCount = activeLeads.filter((x) => x.stage === 'Contacted').length
-  const meetingCount = activeLeads.filter((x) => x.stage === 'Meeting').length
-  const proposalCount = activeLeads.filter((x) => x.stage === 'Proposal').length
   const wonCount = activeLeads.filter((x) => x.dealStatus === 'Won' || x.stage === 'Won').length
   const lostCount = activeLeads.filter((x) => x.dealStatus === 'Lost').length
+  const openDealsCount = activeLeads.filter((x) => x.dealStatus === 'Open').length
   const totalDealValue = activeLeads.reduce((sum, x) => sum + Number(x.quoteAmount || 0), 0)
-  const totalWonValue = activeLeads
-    .filter((x) => x.dealStatus === 'Won')
-    .reduce((sum, x) => sum + Number(x.quoteAmount || 0), 0)
+  const conversionRate = total ? Math.round((wonCount / total) * 100) : 0
 
   const avgDealValue = total ? Math.round(totalDealValue / total) : 0
   const weeklyNewClients = activeLeads.filter((lead) => Number(lead.createdAt || 0) >= getStartOfWeekTimestamp()).length
-  const openDealsCount = activeLeads.filter((x) => x.dealStatus === 'Open').length
   const winRateVsClosed = wonCount + lostCount ? Math.round((wonCount / (wonCount + lostCount)) * 100) : 0
 
   const todayTasksCount = allTasks.filter(isTaskToday).length
@@ -1479,14 +1328,8 @@ export default function App() {
   const doneTasksCount = allTasks.filter((t) => t.status === 'Done').length
 
   const todayFollowups = activeLeads.filter((lead) => lead.nextFollowUpDate === todayString())
-  const overdueFollowups = activeLeads.filter(
-    (lead) => lead.nextFollowUpDate && lead.nextFollowUpDate < todayString() && lead.dealStatus !== 'Won'
-  )
-  const pendingProposalLeads = activeLeads.filter(
-    (lead) => lead.stage === 'Proposal' && lead.decisionStatus === 'Pending'
-  )
-
-  const conversionRate = total ? Math.round((wonCount / total) * 100) : 0
+  const overdueFollowups = activeLeads.filter((lead) => lead.nextFollowUpDate && lead.nextFollowUpDate < todayString() && lead.dealStatus !== 'Won')
+  const pendingProposalLeads = activeLeads.filter((lead) => lead.stage === 'Proposal' && lead.decisionStatus === 'Pending')
 
   const selectedClientPaymentsSummary = {
     quote: Number(selectedClient?.quoteAmount || 0),
@@ -1498,9 +1341,7 @@ export default function App() {
     return STAGES.map((stage) => ({
       stage,
       count: activeLeads.filter((lead) => lead.stage === stage).length,
-      value: activeLeads
-        .filter((lead) => lead.stage === stage)
-        .reduce((sum, lead) => sum + Number(lead.quoteAmount || 0), 0)
+      value: activeLeads.filter((lead) => lead.stage === stage).reduce((sum, lead) => sum + Number(lead.quoteAmount || 0), 0)
     }))
   }, [activeLeads])
 
@@ -1540,29 +1381,20 @@ export default function App() {
       current.value += Number(lead.quoteAmount || 0)
       map.set(key, current)
     })
-    return Array.from(map.values())
-      .sort((a, b) => b.count - a.count || b.value - a.value)
-      .slice(0, 5)
+    return Array.from(map.values()).sort((a, b) => b.count - a.count || b.value - a.value).slice(0, 5)
   }, [activeLeads])
 
   const lostReasonStats = useMemo(() => {
     const map = new Map()
-    activeLeads
-      .filter((lead) => lead.dealStatus === 'Lost')
-      .forEach((lead) => {
-        const key = (lead.lostReason || 'غير محدد').trim() || 'غير محدد'
-        map.set(key, (map.get(key) || 0) + 1)
-      })
-    return Array.from(map.entries())
-      .map(([reason, count]) => ({ reason, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5)
+    activeLeads.filter((lead) => lead.dealStatus === 'Lost').forEach((lead) => {
+      const key = (lead.lostReason || 'غير محدد').trim() || 'غير محدد'
+      map.set(key, (map.get(key) || 0) + 1)
+    })
+    return Array.from(map.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count).slice(0, 5)
   }, [activeLeads])
 
   const recentClients = useMemo(() => {
-    return [...activeLeads]
-      .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
-      .slice(0, 6)
+    return [...activeLeads].sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)).slice(0, 6)
   }, [activeLeads])
 
   const upcomingClosings = useMemo(() => {
@@ -1574,61 +1406,25 @@ export default function App() {
 
   const notifications = useMemo(() => {
     if (!settings.notificationsEnabled) return []
-
     const items = []
 
     allTasks.forEach((task) => {
       if (isTaskOverdue(task)) {
-        items.push({
-          id: `task-overdue-${task.clientId}-${task.id}`,
-          type: 'danger',
-          title: 'مهمة متأخرة',
-          text: `${task.title} - ${task.clientName}`,
-          date: task.dueDate || '',
-          clientId: task.clientId
-        })
+        items.push({ id: `task-overdue-${task.clientId}-${task.id}`, type: 'danger', title: 'مهمة متأخرة', text: `${task.title} - ${task.clientName}`, date: task.dueDate || '', clientId: task.clientId })
       } else if (isTaskToday(task)) {
-        items.push({
-          id: `task-today-${task.clientId}-${task.id}`,
-          type: 'warning',
-          title: 'مهمة اليوم',
-          text: `${task.title} - ${task.clientName}`,
-          date: task.dueDate || '',
-          clientId: task.clientId
-        })
+        items.push({ id: `task-today-${task.clientId}-${task.id}`, type: 'warning', title: 'مهمة اليوم', text: `${task.title} - ${task.clientName}`, date: task.dueDate || '', clientId: task.clientId })
       }
     })
 
     activeLeads.forEach((lead) => {
       if (lead.nextFollowUpDate && lead.nextFollowUpDate < todayString() && lead.dealStatus !== 'Won') {
-        items.push({
-          id: `lead-overdue-followup-${lead.id}`,
-          type: 'danger',
-          title: 'متابعة متأخرة',
-          text: `${lead.company} - ${lead.service || 'بدون خدمة'}`,
-          date: lead.nextFollowUpDate,
-          clientId: lead.id
-        })
+        items.push({ id: `lead-overdue-followup-${lead.id}`, type: 'danger', title: 'متابعة متأخرة', text: `${lead.company} - ${lead.service || 'بدون خدمة'}`, date: lead.nextFollowUpDate, clientId: lead.id })
       } else if (lead.nextFollowUpDate === todayString()) {
-        items.push({
-          id: `lead-today-followup-${lead.id}`,
-          type: 'warning',
-          title: 'متابعة اليوم',
-          text: `${lead.company} - ${lead.service || 'بدون خدمة'}`,
-          date: lead.nextFollowUpDate,
-          clientId: lead.id
-        })
+        items.push({ id: `lead-today-followup-${lead.id}`, type: 'warning', title: 'متابعة اليوم', text: `${lead.company} - ${lead.service || 'بدون خدمة'}`, date: lead.nextFollowUpDate, clientId: lead.id })
       }
 
       if (lead.stage === 'Proposal' && lead.decisionStatus === 'Pending') {
-        items.push({
-          id: `proposal-pending-${lead.id}`,
-          type: 'info',
-          title: 'عرض بانتظار القرار',
-          text: `${lead.company} - ${formatMoney(lead.quoteAmount)} ${settings.currency}`,
-          date: lead.expectedCloseDate || '',
-          clientId: lead.id
-        })
+        items.push({ id: `proposal-pending-${lead.id}`, type: 'info', title: 'عرض بانتظار القرار', text: `${lead.company} - ${formatMoney(lead.quoteAmount)} ${settings.currency}`, date: lead.expectedCloseDate || '', clientId: lead.id })
       }
     })
 
@@ -1648,10 +1444,7 @@ export default function App() {
   }
 
   function openClientFromNotification(notification) {
-    const client =
-      activeLeads.find((lead) => lead.id === notification.clientId) ||
-      visibleLeads.find((lead) => lead.id === notification.clientId)
-
+    const client = activeLeads.find((lead) => lead.id === notification.clientId) || visibleLeads.find((lead) => lead.id === notification.clientId)
     if (client) {
       setSelectedClient(client)
       setActiveTab('overview')
@@ -1685,12 +1478,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="saas-shell">
-        <Sidebar
-          currentPage={currentPage}
-          setCurrentPage={setCurrentPage}
-          settings={settings}
-          currentUser={currentUser}
-        />
+        <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} settings={settings} currentUser={currentUser} />
         <main className="saas-main">
           <div className="loading-box">جاري تحميل البيانات...</div>
         </main>
@@ -1700,12 +1488,7 @@ export default function App() {
 
   return (
     <div className="saas-shell" dir="rtl">
-      <Sidebar
-        currentPage={currentPage}
-        setCurrentPage={setCurrentPage}
-        settings={settings}
-        currentUser={currentUser}
-      />
+      <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} settings={settings} currentUser={currentUser} />
 
       <main className="saas-main">
         <Topbar
@@ -1728,126 +1511,228 @@ export default function App() {
             <div className="saas-grid-4">
               <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}>
                 <option value="All">{AR.allStages}</option>
-                {STAGES.map((stage) => (
-                  <option key={stage} value={stage}>
-                    {stageLabel(stage)}
-                  </option>
-                ))}
+                {STAGES.map((stage) => <option key={stage} value={stage}>{stageLabel(stage)}</option>)}
               </select>
 
               <select value={tempFilter} onChange={(e) => setTempFilter(e.target.value)}>
                 <option value="All">{AR.allTemps}</option>
-                {TEMPERATURES.map((temp) => (
-                  <option key={temp} value={temp}>
-                    {tempLabel(temp)}
-                  </option>
-                ))}
+                {TEMPERATURES.map((temp) => <option key={temp} value={temp}>{tempLabel(temp)}</option>)}
               </select>
 
               <select value={dealFilter} onChange={(e) => setDealFilter(e.target.value)}>
                 <option value="All">{AR.allDeals}</option>
-                {DEAL_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {dealLabel(status)}
-                  </option>
-                ))}
+                {DEAL_STATUSES.map((status) => <option key={status} value={status}>{dealLabel(status)}</option>)}
               </select>
 
               <select value={decisionFilter} onChange={(e) => setDecisionFilter(e.target.value)}>
                 <option value="All">كل حالات القرار</option>
-                {DECISION_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {decisionLabel(status)}
-                  </option>
-                ))}
+                {DECISION_STATUSES.map((status) => <option key={status} value={status}>{decisionLabel(status)}</option>)}
               </select>
 
               {canSeeAllLeads(currentUser) && (
                 <select value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
                   <option value="All">كل المسؤولين</option>
-                  {ownerOptions.map((owner) => (
-                    <option key={owner.id} value={owner.id}>
-                      {owner.name}
-                    </option>
-                  ))}
+                  {ownerOptions.map((owner) => <option key={owner.id} value={owner.id}>{owner.name}</option>)}
                 </select>
               )}
 
-              <button className="secondary-btn" onClick={() => {
-                setStageFilter('All')
-                setTempFilter('All')
-                setDealFilter('All')
-                setDecisionFilter('All')
-                setOwnerFilter('All')
-              }}>
+              <button
+                className="secondary-btn"
+                onClick={() => {
+                  setStageFilter('All')
+                  setTempFilter('All')
+                  setDealFilter('All')
+                  setDecisionFilter('All')
+                  setOwnerFilter('All')
+                }}
+              >
                 إعادة تعيين الفلاتر
               </button>
 
-              <button className="primary-btn" onClick={() => exportCsv(filteredLeads)}>
-                ⬇️ تصدير CSV
-              </button>
+              <button className="primary-btn" onClick={() => exportCsv(filteredLeads)}>⬇️ تصدير CSV</button>
             </div>
           </section>
         )}
 
         {(currentPage === 'dashboard' || currentPage === 'clients') && (
           <>
-            <section className="stats-grid stats-grid-extended">
+            <section className="stats-grid">
               <StatCard title="📊 إجمالي العملاء" value={total} accent="blue" />
-              <StatCard title="🔎 نتائج الفلاتر" value={filteredTotal} accent="purple" />
-              <StatCard title="🆕 عملاء هذا الأسبوع" value={weeklyNewClients} accent="cyan" />
-              <StatCard title="🔥 حار" value={hotCount} accent="red" />
-              <StatCard title="🟡 دافئ" value={warmCount} accent="gold" />
-              <StatCard title="☎️ تم التواصل" value={contactedCount} accent="orange" />
-              <StatCard title="🤝 اجتماعات" value={meetingCount} accent="violet" />
-              <StatCard title="📄 عروض أسعار" value={proposalCount} accent="cyan" />
-              <StatCard title="📂 صفقات مفتوحة" value={openDealsCount} accent="blue" />
+              <StatCard title="📂 صفقات مفتوحة" value={openDealsCount} accent="cyan" />
               <StatCard title="💰 صفقات مغلقة" value={wonCount} accent="green" />
-              <StatCard title="❌ صفقات مفقودة" value={lostCount} accent="red" />
-              <StatCard title={`💵 قيمة الصفقات (${settings.currency})`} value={formatMoney(totalDealValue)} accent="blue" />
-              <StatCard title={`📌 متوسط الصفقة (${settings.currency})`} value={formatMoney(avgDealValue)} accent="orange" />
-              <StatCard title={`✅ أرباح محققة (${settings.currency})`} value={formatMoney(totalWonValue)} accent="green" />
-              <StatCard title="📅 مهام اليوم" value={todayTasksCount} accent="gold" />
               <StatCard title="🚨 مهام متأخرة" value={overdueTasksCount} accent="red" />
-              <StatCard title="📈 نسبة التحويل" value={`${conversionRate}%`} accent="violet" />
-              <StatCard title="🏁 Win Rate (Closed)" value={`${winRateVsClosed}%`} accent="green" />
-              <StatCard title="📦 العملاء المؤرشفون" value={archivedLeads.length} accent="orange" />
+              <StatCard title={`💵 قيمة الصفقات (${settings.currency})`} value={formatMoney(totalDealValue)} accent="purple" />
+              <StatCard title="📈 نسبة التحويل" value={`${conversionRate}%`} accent="gold" />
             </section>
 
-            {currentPage === 'dashboard' && (
-              <>
-                <section className="dashboard-grid">
-                  <div className="saas-page-panel">
-                    <h2>متابعات اليوم</h2>
-                    <div className="list-block">
-                      {todayFollowups.length === 0 ? (
-                        <EmptyState text="لا توجد متابعات مجدولة اليوم" />
-                      ) : (
-                        todayFollowups.map((lead) => (
-                          <div key={lead.id} className="list-item highlight-today">
-                            <div><strong>{AR.company}:</strong> {lead.company}</div>
-                            <div><strong>{AR.service}:</strong> {lead.service || '-'}</div>
-                            <div><strong>{AR.stage}:</strong> {stageLabel(lead.stage)}</div>
-                            <div><strong>المسؤول:</strong> {lead.ownerName || '-'}</div>
-                            <div className="saas-inline-actions top-gap">
-                              <a
-                                href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead, settings)}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="wa-btn"
-                              >
-                                {AR.whatsapp}
-                              </a>
-                              <button
-                                className="primary-btn small-btn"
+            {currentPage === 'dashboard' ? (
+              <section className="dashboard-shell">
+                <div className="dashboard-main-col">
+                  <section className="saas-board">
+                    {STAGES.map((stage) => (
+                      <div key={stage} className="saas-column">
+                        <div className="saas-column-header">
+                          <h3>{stageLabel(stage)}</h3>
+                          <span>{filteredLeads.filter((lead) => lead.stage === stage).length}</span>
+                        </div>
+
+                        <div className="saas-column-body">
+                          {filteredLeads
+                            .filter((lead) => lead.stage === stage)
+                            .map((lead) => (
+                              <div
+                                key={lead.id}
+                                className={`saas-lead-card ${lead.temperature === 'Hot' ? 'lead-hot' : 'lead-warm'}`}
+                                style={{ borderRightColor: lead.temperature === 'Hot' ? '#ef4444' : '#f59e0b' }}
                                 onClick={() => {
                                   setSelectedClient(lead)
                                   setActiveTab('overview')
                                 }}
                               >
-                                فتح العميل
-                              </button>
-                            </div>
+                                {editingId === lead.id && canEditLead(currentUser, lead) ? (
+                                  <>
+                                    <input value={lead.company} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'company', e.target.value)} />
+                                    <input value={lead.phone} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'phone', e.target.value)} />
+                                    <input value={lead.service || ''} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'service', e.target.value)} placeholder="الخدمة" />
+                                    <input type="number" value={lead.quoteAmount || 0} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'quoteAmount', e.target.value)} placeholder="عرض السعر" />
+                                    <select value={lead.dealStatus || 'Open'} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'dealStatus', e.target.value)}>
+                                      {DEAL_STATUSES.map((status) => <option key={status} value={status}>{dealLabel(status)}</option>)}
+                                    </select>
+                                    <select value={lead.decisionStatus || 'Pending'} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'decisionStatus', e.target.value)}>
+                                      {DECISION_STATUSES.map((status) => <option key={status} value={status}>{decisionLabel(status)}</option>)}
+                                    </select>
+                                    <input value={lead.lostReason || ''} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'lostReason', e.target.value)} placeholder={AR.lostReason} />
+
+                                    <div className="saas-inline-actions">
+                                      <button className="primary-btn small-btn" onClick={(e) => { e.stopPropagation(); updateLead(lead) }}>💾 {AR.save}</button>
+                                      <button className="danger-btn small-btn" onClick={(e) => { e.stopPropagation(); setEditingId(null) }}>✖ {AR.cancel}</button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="saas-lead-header">
+                                      <strong>{lead.company}</strong>
+                                      <span className="saas-stage-chip">{stageLabel(lead.stage)}</span>
+                                    </div>
+
+                                    <div className="saas-lead-meta">{AR.service}: {lead.service || '-'}</div>
+                                    <div className="saas-lead-meta">{AR.dealStatus}: {dealLabel(lead.dealStatus)}</div>
+                                    <div className="saas-lead-meta">{AR.decisionStatus}: {decisionLabel(lead.decisionStatus)}</div>
+                                    <div className="saas-lead-meta">{AR.quote}: {formatMoney(lead.quoteAmount)} {settings.currency}</div>
+                                    <div className="saas-lead-meta">المسؤول: {lead.ownerName || '-'}</div>
+                                    <div className="saas-lead-small">📅 {formatDate(lead.createdAt)}</div>
+                                    <div className="saas-lead-small">📌 {AR.followup}: {lead.nextFollowUpDate || '-'}</div>
+
+                                    <div className="saas-inline-actions">
+                                      <a
+                                        href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead, settings)}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="wa-btn"
+                                      >
+                                        {AR.whatsapp}
+                                      </a>
+
+                                      {canEditLead(currentUser, lead) && (
+                                        <button className="primary-btn small-btn" onClick={(e) => { e.stopPropagation(); setEditingId(lead.id) }}>
+                                          ✏️ {AR.edit}
+                                        </button>
+                                      )}
+
+                                      {canArchiveLead(currentUser, lead) && (
+                                        <button
+                                          className="danger-btn small-btn"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            openConfirmDialog({
+                                              title: 'أرشفة العميل',
+                                              message: `هل تريد أرشفة العميل "${lead.company}"؟`,
+                                              confirmText: 'نعم، أرشف',
+                                              type: 'danger',
+                                              onConfirm: async () => {
+                                                await archiveLead(lead.id)
+                                                closeConfirmDialog()
+                                                showToast('تمت أرشفة العميل', 'success')
+                                              }
+                                            })
+                                          }}
+                                        >
+                                          📦 {AR.archive}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </>
+                                )}
+
+                                {canEditLead(currentUser, lead) && (
+                                  <div className="saas-inline-actions top-gap">
+                                    <select
+                                      value={lead.stage}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={async (e) => {
+                                        const value = e.target.value
+                                        patchLeadLocal(lead.id, 'stage', value)
+                                        await saveQuickField(lead.id, 'stage', value)
+                                      }}
+                                    >
+                                      {STAGES.map((stageOption) => <option key={stageOption} value={stageOption}>{stageLabel(stageOption)}</option>)}
+                                    </select>
+
+                                    <select
+                                      value={lead.temperature}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={async (e) => {
+                                        const value = e.target.value
+                                        patchLeadLocal(lead.id, 'temperature', value)
+                                        await saveQuickField(lead.id, 'temperature', value)
+                                      }}
+                                    >
+                                      {TEMPERATURES.map((temp) => <option key={temp} value={temp}>{tempLabel(temp)}</option>)}
+                                    </select>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                </div>
+
+                <aside className="dashboard-side-col">
+                  <div className="saas-page-panel">
+                    <h2>لوحة ذكية</h2>
+                    <div className="list-block">
+                      <div className="list-item report-row">
+                        <div><strong>عملاء هذا الأسبوع</strong></div>
+                        <div>{weeklyNewClients}</div>
+                      </div>
+                      <div className="list-item report-row">
+                        <div><strong>متوسط الصفقة</strong></div>
+                        <div>{formatMoney(avgDealValue)} {settings.currency}</div>
+                      </div>
+                      <div className="list-item report-row">
+                        <div><strong>Win Rate (Closed)</strong></div>
+                        <div>{winRateVsClosed}%</div>
+                      </div>
+                      <div className="list-item report-row">
+                        <div><strong>مهام اليوم</strong></div>
+                        <div>{todayTasksCount}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="saas-page-panel">
+                    <h2>متابعات اليوم</h2>
+                    <div className="list-block">
+                      {todayFollowups.length === 0 ? (
+                        <EmptyState text="لا توجد متابعات اليوم" />
+                      ) : (
+                        todayFollowups.slice(0, 5).map((lead) => (
+                          <div key={lead.id} className="list-item highlight-today">
+                            <div><strong>{lead.company}</strong></div>
+                            <div className="meta-text">{lead.service || '-'}</div>
                           </div>
                         ))
                       )}
@@ -1860,12 +1745,10 @@ export default function App() {
                       {overdueFollowups.length === 0 ? (
                         <EmptyState text="لا توجد متابعات متأخرة" />
                       ) : (
-                        overdueFollowups.map((lead) => (
+                        overdueFollowups.slice(0, 5).map((lead) => (
                           <div key={lead.id} className="list-item highlight-overdue">
-                            <div><strong>{AR.company}:</strong> {lead.company}</div>
-                            <div><strong>{AR.followup}:</strong> {lead.nextFollowUpDate}</div>
-                            <div><strong>{AR.stage}:</strong> {stageLabel(lead.stage)}</div>
-                            <div><strong>المسؤول:</strong> {lead.ownerName || '-'}</div>
+                            <div><strong>{lead.company}</strong></div>
+                            <div className="meta-text">{lead.nextFollowUpDate}</div>
                           </div>
                         ))
                       )}
@@ -1873,36 +1756,31 @@ export default function App() {
                   </div>
 
                   <div className="saas-page-panel">
-                    <h2>عروض بانتظار القرار</h2>
+                    <h2>أقرب إغلاقات</h2>
                     <div className="list-block">
-                      {pendingProposalLeads.length === 0 ? (
-                        <EmptyState text="لا توجد عروض بانتظار القرار" />
+                      {upcomingClosings.length === 0 ? (
+                        <EmptyState text="لا توجد تواريخ إغلاق" />
                       ) : (
-                        pendingProposalLeads.map((lead) => (
+                        upcomingClosings.map((lead) => (
                           <div key={lead.id} className="list-item">
-                            <div><strong>{AR.company}:</strong> {lead.company}</div>
-                            <div><strong>{AR.quote}:</strong> {formatMoney(lead.quoteAmount)} {settings.currency}</div>
-                            <div><strong>{AR.decisionStatus}:</strong> {decisionLabel(lead.decisionStatus)}</div>
-                            <div><strong>المسؤول:</strong> {lead.ownerName || '-'}</div>
+                            <div><strong>{lead.company}</strong></div>
+                            <div className="meta-text">{lead.expectedCloseDate}</div>
                           </div>
                         ))
                       )}
                     </div>
                   </div>
-                </section>
 
-                <section className="dashboard-grid">
                   <div className="saas-page-panel">
                     <h2>أكثر الخدمات طلبًا</h2>
                     <div className="list-block">
                       {serviceStats.length === 0 ? (
-                        <EmptyState text="لا توجد بيانات خدمات" />
+                        <EmptyState text="لا توجد بيانات" />
                       ) : (
                         serviceStats.map((item) => (
                           <div key={item.name} className="list-item report-row">
                             <div><strong>{item.name}</strong></div>
-                            <div>العدد: {item.count}</div>
-                            <div>القيمة: {formatMoney(item.value)} {settings.currency}</div>
+                            <div>{item.count}</div>
                           </div>
                         ))
                       )}
@@ -1913,7 +1791,7 @@ export default function App() {
                     <h2>أكثر أسباب الخسارة</h2>
                     <div className="list-block">
                       {lostReasonStats.length === 0 ? (
-                        <EmptyState text="لا توجد صفقات خاسرة حتى الآن" />
+                        <EmptyState text="لا توجد صفقات خاسرة" />
                       ) : (
                         lostReasonStats.map((item) => (
                           <div key={item.reason} className="list-item report-row">
@@ -1925,26 +1803,25 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="saas-page-panel">
-                    <h2>أقرب إغلاقات متوقعة</h2>
-                    <div className="list-block">
-                      {upcomingClosings.length === 0 ? (
-                        <EmptyState text="لا توجد تواريخ إغلاق متوقعة" />
-                      ) : (
-                        upcomingClosings.map((lead) => (
-                          <div key={lead.id} className="list-item">
-                            <div><strong>{lead.company}</strong></div>
-                            <div className="top-gap">الخدمة: {lead.service || '-'}</div>
-                            <div className="top-gap">التاريخ: {lead.expectedCloseDate}</div>
-                            <div className="meta-text">القيمة: {formatMoney(lead.quoteAmount)} {settings.currency}</div>
-                          </div>
-                        ))
-                      )}
+                  {canSeeAllLeads(currentUser) && (
+                    <div className="saas-page-panel">
+                      <h2>أداء الموظفين</h2>
+                      <div className="list-block">
+                        {reportByUser.length === 0 ? (
+                          <EmptyState text="لا توجد بيانات" />
+                        ) : (
+                          reportByUser.slice(0, 5).map((item) => (
+                            <div key={item.id} className="list-item">
+                              <div><strong>{item.name}</strong></div>
+                              <div className="meta-text">العملاء: {item.count}</div>
+                              <div className="meta-text">المغلق: {item.won}</div>
+                            </div>
+                          ))
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </section>
+                  )}
 
-                <section className="dashboard-grid">
                   <div className="saas-page-panel">
                     <h2>أحدث العملاء</h2>
                     <div className="list-block">
@@ -1954,64 +1831,25 @@ export default function App() {
                         recentClients.map((lead) => (
                           <div key={lead.id} className="list-item">
                             <div><strong>{lead.company}</strong></div>
-                            <div className="top-gap">الخدمة: {lead.service || '-'}</div>
                             <div className="meta-text">{formatDate(lead.createdAt)}</div>
                           </div>
                         ))
                       )}
                     </div>
                   </div>
-
-                  {canSeeAllLeads(currentUser) && (
-                    <div className="saas-page-panel">
-                      <h2>لوحة أداء الموظفين</h2>
-                      <div className="list-block">
-                        {reportByUser.length === 0 ? (
-                          <EmptyState text="لا توجد بيانات موظفين" />
-                        ) : (
-                          reportByUser.slice(0, 6).map((item) => (
-                            <div key={item.id} className="list-item report-row">
-                              <div>
-                                <strong>{item.name}</strong>
-                                <div className="meta-text">{getRoleLabel(item.role)}</div>
-                              </div>
-                              <div>العملاء: {item.count}</div>
-                              <div>المغلق: {item.won}</div>
-                              <div>{formatMoney(item.value)} {settings.currency}</div>
-                            </div>
-                          ))
-                        )}
-                      </div>
+                </aside>
+              </section>
+            ) : (
+              <section className="saas-board">
+                {STAGES.map((stage) => (
+                  <div key={stage} className="saas-column">
+                    <div className="saas-column-header">
+                      <h3>{stageLabel(stage)}</h3>
+                      <span>{filteredLeads.filter((lead) => lead.stage === stage).length}</span>
                     </div>
-                  )}
 
-                  <div className="saas-page-panel">
-                    <h2>ملخص القرار الحالي</h2>
-                    <div className="list-block">
-                      {reportByDecision.map((item) => (
-                        <div key={item.status} className="list-item report-row">
-                          <div><strong>{decisionLabel(item.status)}</strong></div>
-                          <div>{item.count}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </section>
-              </>
-            )}
-
-            <section className="saas-board">
-              {STAGES.map((stage) => (
-                <div key={stage} className="saas-column">
-                  <div className="saas-column-header">
-                    <h3>{stageLabel(stage)}</h3>
-                    <span>{filteredLeads.filter((lead) => lead.stage === stage).length}</span>
-                  </div>
-
-                  <div className="saas-column-body">
-                    {filteredLeads
-                      .filter((lead) => lead.stage === stage)
-                      .map((lead) => (
+                    <div className="saas-column-body">
+                      {filteredLeads.filter((lead) => lead.stage === stage).map((lead) => (
                         <div
                           key={lead.id}
                           className={`saas-lead-card ${lead.temperature === 'Hot' ? 'lead-hot' : 'lead-warm'}`}
@@ -2021,190 +1859,20 @@ export default function App() {
                             setActiveTab('overview')
                           }}
                         >
-                          {editingId === lead.id && canEditLead(currentUser, lead) ? (
-                            <>
-                              <input
-                                value={lead.company}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => patchLeadLocal(lead.id, 'company', e.target.value)}
-                              />
-                              <input
-                                value={lead.phone}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => patchLeadLocal(lead.id, 'phone', e.target.value)}
-                              />
-                              <input
-                                value={lead.service || ''}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => patchLeadLocal(lead.id, 'service', e.target.value)}
-                                placeholder="الخدمة"
-                              />
-                              <input
-                                type="number"
-                                value={lead.quoteAmount || 0}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => patchLeadLocal(lead.id, 'quoteAmount', e.target.value)}
-                                placeholder="عرض السعر"
-                              />
-                              <select
-                                value={lead.dealStatus || 'Open'}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => patchLeadLocal(lead.id, 'dealStatus', e.target.value)}
-                              >
-                                {DEAL_STATUSES.map((status) => (
-                                  <option key={status} value={status}>
-                                    {dealLabel(status)}
-                                  </option>
-                                ))}
-                              </select>
-                              <select
-                                value={lead.decisionStatus || 'Pending'}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => patchLeadLocal(lead.id, 'decisionStatus', e.target.value)}
-                              >
-                                {DECISION_STATUSES.map((status) => (
-                                  <option key={status} value={status}>
-                                    {decisionLabel(status)}
-                                  </option>
-                                ))}
-                              </select>
-                              <input
-                                value={lead.lostReason || ''}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => patchLeadLocal(lead.id, 'lostReason', e.target.value)}
-                                placeholder={AR.lostReason}
-                              />
-
-                              <div className="saas-inline-actions">
-                                <button
-                                  className="primary-btn small-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    updateLead(lead)
-                                  }}
-                                >
-                                  💾 {AR.save}
-                                </button>
-                                <button
-                                  className="danger-btn small-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setEditingId(null)
-                                  }}
-                                >
-                                  ✖ {AR.cancel}
-                                </button>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="saas-lead-header">
-                                <strong>{lead.company}</strong>
-                                <span className="saas-stage-chip">{stageLabel(lead.stage)}</span>
-                              </div>
-
-                              <div className="saas-lead-meta">{AR.service}: {lead.service || '-'}</div>
-                              <div className="saas-lead-meta">{AR.dealStatus}: {dealLabel(lead.dealStatus)}</div>
-                              <div className="saas-lead-meta">{AR.decisionStatus}: {decisionLabel(lead.decisionStatus)}</div>
-                              <div className="saas-lead-meta">{AR.quote}: {formatMoney(lead.quoteAmount)} {settings.currency}</div>
-                              <div className="saas-lead-meta">{AR.paid}: {formatMoney(lead.paidAmount)} {settings.currency}</div>
-                              <div className="saas-lead-meta">{AR.remaining}: {formatMoney(lead.remainingAmount)} {settings.currency}</div>
-                              <div className="saas-lead-meta">المسؤول: {lead.ownerName || '-'}</div>
-                              {lead.dealStatus === 'Lost' && (
-                                <div className="saas-lead-meta">{AR.lostReason}: {lead.lostReason || '-'}</div>
-                              )}
-                              <div className="saas-lead-small">📅 {formatDate(lead.createdAt)}</div>
-                              <div className="saas-lead-small">📌 {AR.followup}: {lead.nextFollowUpDate || '-'}</div>
-
-                              <div className="saas-inline-actions">
-                                <a
-                                  href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead, settings)}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="wa-btn"
-                                >
-                                  {AR.whatsapp}
-                                </a>
-
-                                {canEditLead(currentUser, lead) && (
-                                  <button
-                                    className="primary-btn small-btn"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setEditingId(lead.id)
-                                    }}
-                                  >
-                                    ✏️ {AR.edit}
-                                  </button>
-                                )}
-
-                                {canArchiveLead(currentUser, lead) && (
-                                  <button
-                                    className="danger-btn small-btn"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      openConfirmDialog({
-                                        title: 'أرشفة العميل',
-                                        message: `هل تريد أرشفة العميل "${lead.company}"؟`,
-                                        confirmText: 'نعم، أرشف',
-                                        type: 'danger',
-                                        onConfirm: async () => {
-                                          await archiveLead(lead.id)
-                                          closeConfirmDialog()
-                                          showToast('تمت أرشفة العميل', 'success')
-                                        }
-                                      })
-                                    }}
-                                  >
-                                    📦 {AR.archive}
-                                  </button>
-                                )}
-                              </div>
-                            </>
-                          )}
-
-                          {canEditLead(currentUser, lead) && (
-                            <div className="saas-inline-actions top-gap">
-                              <select
-                                value={lead.stage}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={async (e) => {
-                                  const value = e.target.value
-                                  patchLeadLocal(lead.id, 'stage', value)
-                                  await saveQuickField(lead.id, 'stage', value)
-                                }}
-                              >
-                                {STAGES.map((stageOption) => (
-                                  <option key={stageOption} value={stageOption}>
-                                    {stageLabel(stageOption)}
-                                  </option>
-                                ))}
-                              </select>
-
-                              <select
-                                value={lead.temperature}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={async (e) => {
-                                  const value = e.target.value
-                                  patchLeadLocal(lead.id, 'temperature', value)
-                                  await saveQuickField(lead.id, 'temperature', value)
-                                }}
-                              >
-                                {TEMPERATURES.map((temp) => (
-                                  <option key={temp} value={temp}>
-                                    {tempLabel(temp)}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
+                          <div className="saas-lead-header">
+                            <strong>{lead.company}</strong>
+                            <span className="saas-stage-chip">{stageLabel(lead.stage)}</span>
+                          </div>
+                          <div className="saas-lead-meta">{AR.service}: {lead.service || '-'}</div>
+                          <div className="saas-lead-meta">{AR.quote}: {formatMoney(lead.quoteAmount)} {settings.currency}</div>
+                          <div className="saas-lead-meta">المسؤول: {lead.ownerName || '-'}</div>
                         </div>
                       ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </section>
+                ))}
+              </section>
+            )}
           </>
         )}
 
@@ -2231,49 +1899,20 @@ export default function App() {
                     {editingTaskId === task.id ? (
                       <>
                         <div className="saas-grid-4">
-                          <input
-                            value={editingTaskData.title}
-                            onChange={(e) => setEditingTaskData({ ...editingTaskData, title: e.target.value })}
-                            placeholder="اسم المهمة"
-                          />
-                          <input
-                            type="date"
-                            value={editingTaskData.dueDate}
-                            onChange={(e) => setEditingTaskData({ ...editingTaskData, dueDate: e.target.value })}
-                          />
-                          <input
-                            value={editingTaskData.owner}
-                            onChange={(e) => setEditingTaskData({ ...editingTaskData, owner: e.target.value })}
-                            placeholder="المسؤول"
-                          />
-                          <select
-                            value={editingTaskData.status}
-                            onChange={(e) => setEditingTaskData({ ...editingTaskData, status: e.target.value })}
-                          >
-                            {TASK_STATUSES.map((status) => (
-                              <option key={status} value={status}>
-                                {taskStatusLabel(status)}
-                              </option>
-                            ))}
+                          <input value={editingTaskData.title} onChange={(e) => setEditingTaskData({ ...editingTaskData, title: e.target.value })} placeholder="اسم المهمة" />
+                          <input type="date" value={editingTaskData.dueDate} onChange={(e) => setEditingTaskData({ ...editingTaskData, dueDate: e.target.value })} />
+                          <input value={editingTaskData.owner} onChange={(e) => setEditingTaskData({ ...editingTaskData, owner: e.target.value })} placeholder="المسؤول" />
+                          <select value={editingTaskData.status} onChange={(e) => setEditingTaskData({ ...editingTaskData, status: e.target.value })}>
+                            {TASK_STATUSES.map((status) => <option key={status} value={status}>{taskStatusLabel(status)}</option>)}
                           </select>
                         </div>
 
                         <div className="saas-inline-actions top-gap">
-                          <button className="primary-btn small-btn" onClick={() => saveEditedTask(task)}>
-                            💾 {AR.save}
-                          </button>
-                          <button
-                            className="danger-btn small-btn"
-                            onClick={() => {
-                              setEditingTaskId(null)
-                              setEditingTaskData({
-                                title: '',
-                                dueDate: '',
-                                owner: '',
-                                status: 'Pending'
-                              })
-                            }}
-                          >
+                          <button className="primary-btn small-btn" onClick={() => saveEditedTask(task)}>💾 {AR.save}</button>
+                          <button className="danger-btn small-btn" onClick={() => {
+                            setEditingTaskId(null)
+                            setEditingTaskData({ title: '', dueDate: '', owner: '', status: 'Pending' })
+                          }}>
                             {AR.cancel}
                           </button>
                         </div>
@@ -2287,23 +1926,11 @@ export default function App() {
                         <div><strong>الحالة:</strong> {taskStatusLabel(task.status)}</div>
 
                         <div className="saas-inline-actions top-gap">
-                          <select
-                            value={task.status}
-                            onChange={(e) => updateTaskStatus(task.id, e.target.value, task.clientId)}
-                          >
-                            {TASK_STATUSES.map((status) => (
-                              <option key={status} value={status}>
-                                {taskStatusLabel(status)}
-                              </option>
-                            ))}
+                          <select value={task.status} onChange={(e) => updateTaskStatus(task.id, e.target.value, task.clientId)}>
+                            {TASK_STATUSES.map((status) => <option key={status} value={status}>{taskStatusLabel(status)}</option>)}
                           </select>
 
-                          <button
-                            className="primary-btn small-btn"
-                            onClick={() => startEditTask(task)}
-                          >
-                            ✏️ {AR.edit}
-                          </button>
+                          <button className="primary-btn small-btn" onClick={() => startEditTask(task)}>✏️ {AR.edit}</button>
 
                           <button
                             className="danger-btn small-btn"
@@ -2377,18 +2004,9 @@ export default function App() {
               <div className="saas-page-panel">
                 <h2>ملخص المهام</h2>
                 <div className="list-block">
-                  <div className="list-item report-row">
-                    <div><strong>{AR.todayTasks}</strong></div>
-                    <div>{todayTasksCount}</div>
-                  </div>
-                  <div className="list-item report-row">
-                    <div><strong>{AR.overdueTasks}</strong></div>
-                    <div>{overdueTasksCount}</div>
-                  </div>
-                  <div className="list-item report-row">
-                    <div><strong>{AR.doneTasks}</strong></div>
-                    <div>{doneTasksCount}</div>
-                  </div>
+                  <div className="list-item report-row"><div><strong>{AR.todayTasks}</strong></div><div>{todayTasksCount}</div></div>
+                  <div className="list-item report-row"><div><strong>{AR.overdueTasks}</strong></div><div>{overdueTasksCount}</div></div>
+                  <div className="list-item report-row"><div><strong>{AR.doneTasks}</strong></div><div>{doneTasksCount}</div></div>
                 </div>
               </div>
 
@@ -2490,49 +2108,27 @@ export default function App() {
             <div className="saas-grid-2">
               <div className="info-box">
                 <div className="info-box-label">اسم النظام / الشركة</div>
-                <input
-                  value={settings.companyName}
-                  onChange={(e) => setSettings({ ...settings, companyName: e.target.value })}
-                  placeholder="اسم الشركة"
-                />
+                <input value={settings.companyName} onChange={(e) => setSettings({ ...settings, companyName: e.target.value })} placeholder="اسم الشركة" />
               </div>
 
               <div className="info-box">
                 <div className="info-box-label">العملة</div>
-                <input
-                  value={settings.currency}
-                  onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
-                  placeholder="ريال"
-                />
+                <input value={settings.currency} onChange={(e) => setSettings({ ...settings, currency: e.target.value })} placeholder="ريال" />
               </div>
 
               <div className="info-box">
                 <div className="info-box-label">نسبة الضريبة %</div>
-                <input
-                  type="number"
-                  value={settings.vatPercent}
-                  onChange={(e) => setSettings({ ...settings, vatPercent: e.target.value })}
-                  placeholder="15"
-                />
+                <input type="number" value={settings.vatPercent} onChange={(e) => setSettings({ ...settings, vatPercent: e.target.value })} placeholder="15" />
               </div>
 
               <div className="info-box">
                 <div className="info-box-label">المسؤول الافتراضي للمهام</div>
-                <input
-                  value={settings.defaultTaskOwner}
-                  onChange={(e) => setSettings({ ...settings, defaultTaskOwner: e.target.value })}
-                  placeholder="مثال: مدير المبيعات"
-                />
+                <input value={settings.defaultTaskOwner} onChange={(e) => setSettings({ ...settings, defaultTaskOwner: e.target.value })} placeholder="مثال: مدير المبيعات" />
               </div>
 
               <div className="info-box full-span">
                 <div className="info-box-label">توقيع واتساب الذكي</div>
-                <textarea
-                  rows="4"
-                  value={settings.whatsappSignature}
-                  onChange={(e) => setSettings({ ...settings, whatsappSignature: e.target.value })}
-                  placeholder="مع تحيات فريق المبيعات"
-                />
+                <textarea rows="4" value={settings.whatsappSignature} onChange={(e) => setSettings({ ...settings, whatsappSignature: e.target.value })} placeholder="مع تحيات فريق المبيعات" />
               </div>
 
               <div className="info-box full-span">
@@ -2543,11 +2139,7 @@ export default function App() {
                   </div>
 
                   <label className="switch">
-                    <input
-                      type="checkbox"
-                      checked={settings.notificationsEnabled}
-                      onChange={(e) => setSettings({ ...settings, notificationsEnabled: e.target.checked })}
-                    />
+                    <input type="checkbox" checked={settings.notificationsEnabled} onChange={(e) => setSettings({ ...settings, notificationsEnabled: e.target.checked })} />
                     <span className="slider"></span>
                   </label>
                 </div>
@@ -2555,12 +2147,8 @@ export default function App() {
             </div>
 
             <div className="saas-inline-actions top-gap">
-              <button className="primary-btn" onClick={saveSettings}>
-                💾 حفظ الإعدادات
-              </button>
-              <button className="secondary-btn" onClick={resetSettings}>
-                إعادة الافتراضي
-              </button>
+              <button className="primary-btn" onClick={saveSettings}>💾 حفظ الإعدادات</button>
+              <button className="secondary-btn" onClick={resetSettings}>إعادة الافتراضي</button>
             </div>
 
             {canManageUsers(currentUser) && (
@@ -2569,25 +2157,10 @@ export default function App() {
                   <h2>إدارة المستخدمين</h2>
 
                   <div className="saas-grid-4">
-                    <input
-                      placeholder="اسم المستخدم"
-                      value={userForm.name}
-                      onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-                    />
-                    <input
-                      placeholder="البريد الإلكتروني"
-                      value={userForm.email}
-                      onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-                    />
-                    <input
-                      placeholder="كلمة المرور"
-                      value={userForm.password}
-                      onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                    />
-                    <select
-                      value={userForm.role}
-                      onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
-                    >
+                    <input placeholder="اسم المستخدم" value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} />
+                    <input placeholder="البريد الإلكتروني" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} />
+                    <input placeholder="كلمة المرور" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} />
+                    <select value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}>
                       <option value="admin">أدمن</option>
                       <option value="manager">مدير</option>
                       <option value="sales">موظف مبيعات</option>
@@ -2598,11 +2171,7 @@ export default function App() {
                     <label className="toggle-row">
                       <span>الحساب مفعل</span>
                       <label className="switch">
-                        <input
-                          type="checkbox"
-                          checked={userForm.active}
-                          onChange={(e) => setUserForm({ ...userForm, active: e.target.checked })}
-                        />
+                        <input type="checkbox" checked={userForm.active} onChange={(e) => setUserForm({ ...userForm, active: e.target.checked })} />
                         <span className="slider"></span>
                       </label>
                     </label>
@@ -2611,23 +2180,16 @@ export default function App() {
                   <div className="saas-inline-actions top-gap">
                     {editingUserId ? (
                       <>
-                        <button className="primary-btn" onClick={saveEditedUser}>
-                          حفظ تعديل المستخدم
-                        </button>
-                        <button
-                          className="danger-btn"
-                          onClick={() => {
-                            setEditingUserId(null)
-                            setUserForm(emptyUserForm)
-                          }}
-                        >
+                        <button className="primary-btn" onClick={saveEditedUser}>حفظ تعديل المستخدم</button>
+                        <button className="danger-btn" onClick={() => {
+                          setEditingUserId(null)
+                          setUserForm(emptyUserForm)
+                        }}>
                           إلغاء
                         </button>
                       </>
                     ) : (
-                      <button className="primary-btn" onClick={createUser}>
-                        + إضافة مستخدم
-                      </button>
+                      <button className="primary-btn" onClick={createUser}>+ إضافة مستخدم</button>
                     )}
                   </div>
 
@@ -2640,9 +2202,7 @@ export default function App() {
                         <div><strong>الحالة:</strong> {user.active ? 'مفعل' : 'موقوف'}</div>
 
                         <div className="saas-inline-actions top-gap">
-                          <button className="primary-btn small-btn" onClick={() => startEditUser(user)}>
-                            ✏️ تعديل
-                          </button>
+                          <button className="primary-btn small-btn" onClick={() => startEditUser(user)}>✏️ تعديل</button>
                           <button
                             className="danger-btn small-btn"
                             onClick={() =>
@@ -2677,105 +2237,41 @@ export default function App() {
           <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
             <div className="drawer-header">
               <h2>{AR.addClient}</h2>
-              <button className="danger-btn small-btn" onClick={() => setShowAddPanel(false)}>
-                إغلاق
-              </button>
+              <button className="danger-btn small-btn" onClick={() => setShowAddPanel(false)}>إغلاق</button>
             </div>
 
             <div className="saas-grid-2">
-              <input
-                placeholder={AR.company}
-                value={newLead.company}
-                onChange={(e) => setNewLead({ ...newLead, company: e.target.value })}
-              />
-              <input
-                placeholder={AR.phone}
-                value={newLead.phone}
-                onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })}
-              />
-              <input
-                placeholder={AR.service}
-                value={newLead.service}
-                onChange={(e) => setNewLead({ ...newLead, service: e.target.value })}
-              />
-              <input
-                placeholder={AR.quote}
-                type="number"
-                value={newLead.quoteAmount}
-                onChange={(e) => setNewLead({ ...newLead, quoteAmount: e.target.value })}
-              />
-              <input
-                type="date"
-                value={newLead.nextFollowUpDate}
-                onChange={(e) => setNewLead({ ...newLead, nextFollowUpDate: e.target.value })}
-              />
-              <input
-                type="date"
-                value={newLead.expectedCloseDate}
-                onChange={(e) => setNewLead({ ...newLead, expectedCloseDate: e.target.value })}
-              />
+              <input placeholder={AR.company} value={newLead.company} onChange={(e) => setNewLead({ ...newLead, company: e.target.value })} />
+              <input placeholder={AR.phone} value={newLead.phone} onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })} />
+              <input placeholder={AR.service} value={newLead.service} onChange={(e) => setNewLead({ ...newLead, service: e.target.value })} />
+              <input placeholder={AR.quote} type="number" value={newLead.quoteAmount} onChange={(e) => setNewLead({ ...newLead, quoteAmount: e.target.value })} />
+              <input type="date" value={newLead.nextFollowUpDate} onChange={(e) => setNewLead({ ...newLead, nextFollowUpDate: e.target.value })} />
+              <input type="date" value={newLead.expectedCloseDate} onChange={(e) => setNewLead({ ...newLead, expectedCloseDate: e.target.value })} />
 
-              <select
-                value={newLead.temperature}
-                onChange={(e) => setNewLead({ ...newLead, temperature: e.target.value })}
-              >
-                {TEMPERATURES.map((temp) => (
-                  <option key={temp} value={temp}>
-                    {tempLabel(temp)}
-                  </option>
-                ))}
+              <select value={newLead.temperature} onChange={(e) => setNewLead({ ...newLead, temperature: e.target.value })}>
+                {TEMPERATURES.map((temp) => <option key={temp} value={temp}>{tempLabel(temp)}</option>)}
               </select>
 
-              <select
-                value={newLead.stage}
-                onChange={(e) => setNewLead({ ...newLead, stage: e.target.value })}
-              >
-                {STAGES.map((stage) => (
-                  <option key={stage} value={stage}>
-                    {stageLabel(stage)}
-                  </option>
-                ))}
+              <select value={newLead.stage} onChange={(e) => setNewLead({ ...newLead, stage: e.target.value })}>
+                {STAGES.map((stage) => <option key={stage} value={stage}>{stageLabel(stage)}</option>)}
               </select>
 
-              <select
-                value={newLead.dealStatus}
-                onChange={(e) => setNewLead({ ...newLead, dealStatus: e.target.value })}
-              >
-                {DEAL_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {dealLabel(status)}
-                  </option>
-                ))}
+              <select value={newLead.dealStatus} onChange={(e) => setNewLead({ ...newLead, dealStatus: e.target.value })}>
+                {DEAL_STATUSES.map((status) => <option key={status} value={status}>{dealLabel(status)}</option>)}
               </select>
 
-              <select
-                value={newLead.decisionStatus}
-                onChange={(e) => setNewLead({ ...newLead, decisionStatus: e.target.value })}
-              >
-                {DECISION_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {decisionLabel(status)}
-                  </option>
-                ))}
+              <select value={newLead.decisionStatus} onChange={(e) => setNewLead({ ...newLead, decisionStatus: e.target.value })}>
+                {DECISION_STATUSES.map((status) => <option key={status} value={status}>{decisionLabel(status)}</option>)}
               </select>
 
-              <select
-                value={newLead.lostReason}
-                onChange={(e) => setNewLead({ ...newLead, lostReason: e.target.value })}
-              >
+              <select value={newLead.lostReason} onChange={(e) => setNewLead({ ...newLead, lostReason: e.target.value })}>
                 <option value="">{AR.lostReason}</option>
-                {LOST_REASONS.map((reason) => (
-                  <option key={reason} value={reason}>
-                    {reason}
-                  </option>
-                ))}
+                {LOST_REASONS.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
               </select>
             </div>
 
             <div className="drawer-footer">
-              <button className="primary-btn" onClick={addLead}>
-                + {AR.save}
-              </button>
+              <button className="primary-btn" onClick={addLead}>+ {AR.save}</button>
             </div>
           </div>
         </div>
@@ -2799,19 +2295,13 @@ export default function App() {
                 >
                   {AR.whatsapp}
                 </a>
-                <button className="danger-btn small-btn" onClick={() => setSelectedClient(null)}>
-                  إغلاق
-                </button>
+                <button className="danger-btn small-btn" onClick={() => setSelectedClient(null)}>إغلاق</button>
               </div>
             </div>
 
             <div className="tabs">
               {TABS.map((tab) => (
-                <button
-                  key={tab}
-                  className={activeTab === tab ? 'active' : ''}
-                  onClick={() => setActiveTab(tab)}
-                >
+                <button key={tab} className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>
                   {tab === 'overview' && AR.overview}
                   {tab === 'tasks' && AR.tasks}
                   {tab === 'notes' && AR.notes}
@@ -2847,37 +2337,16 @@ export default function App() {
             {activeTab === 'tasks' && (
               <>
                 <div className="saas-grid-4">
-                  <input
-                    placeholder="اسم المهمة"
-                    value={taskForm.title}
-                    onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
-                  />
-                  <input
-                    type="date"
-                    value={taskForm.dueDate}
-                    onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
-                  />
-                  <input
-                    placeholder="المسؤول"
-                    value={taskForm.owner}
-                    onChange={(e) => setTaskForm({ ...taskForm, owner: e.target.value })}
-                  />
-                  <select
-                    value={taskForm.status}
-                    onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value })}
-                  >
-                    {TASK_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {taskStatusLabel(status)}
-                      </option>
-                    ))}
+                  <input placeholder="اسم المهمة" value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} />
+                  <input type="date" value={taskForm.dueDate} onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} />
+                  <input placeholder="المسؤول" value={taskForm.owner} onChange={(e) => setTaskForm({ ...taskForm, owner: e.target.value })} />
+                  <select value={taskForm.status} onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value })}>
+                    {TASK_STATUSES.map((status) => <option key={status} value={status}>{taskStatusLabel(status)}</option>)}
                   </select>
                 </div>
 
                 <div className="top-gap">
-                  <button className="primary-btn" onClick={addTask}>
-                    + إضافة مهمة
-                  </button>
+                  <button className="primary-btn" onClick={addTask}>+ إضافة مهمة</button>
                 </div>
 
                 <div className="list-block">
@@ -2892,15 +2361,8 @@ export default function App() {
                         <div><strong>الحالة:</strong> {taskStatusLabel(task.status)}</div>
 
                         <div className="saas-inline-actions top-gap">
-                          <select
-                            value={task.status}
-                            onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                          >
-                            {TASK_STATUSES.map((status) => (
-                              <option key={status} value={status}>
-                                {taskStatusLabel(status)}
-                              </option>
-                            ))}
+                          <select value={task.status} onChange={(e) => updateTaskStatus(task.id, e.target.value)}>
+                            {TASK_STATUSES.map((status) => <option key={status} value={status}>{taskStatusLabel(status)}</option>)}
                           </select>
 
                           <button
@@ -2932,15 +2394,8 @@ export default function App() {
             {activeTab === 'notes' && (
               <>
                 <div className="saas-inline-actions">
-                  <input
-                    className="flex-1"
-                    placeholder="اكتب ملاحظة"
-                    value={noteText}
-                    onChange={(e) => setNoteText(e.target.value)}
-                  />
-                  <button className="primary-btn" onClick={addNote}>
-                    + إضافة ملاحظة
-                  </button>
+                  <input className="flex-1" placeholder="اكتب ملاحظة" value={noteText} onChange={(e) => setNoteText(e.target.value)} />
+                  <button className="primary-btn" onClick={addNote}>+ إضافة ملاحظة</button>
                 </div>
 
                 <div className="list-block">
@@ -2979,24 +2434,14 @@ export default function App() {
             {activeTab === 'files' && (
               <>
                 <div className="saas-grid-4">
-                  <select
-                    value={fileForm.type}
-                    onChange={(e) => setFileForm({ ...fileForm, type: e.target.value })}
-                  >
+                  <select value={fileForm.type} onChange={(e) => setFileForm({ ...fileForm, type: e.target.value })}>
                     <option value="عرض سعر">عرض سعر</option>
                     <option value="عقد">عقد</option>
                     <option value="ملف آخر">ملف آخر</option>
                   </select>
 
-                  <input
-                    placeholder="رابط الملف"
-                    value={fileForm.url}
-                    onChange={(e) => setFileForm({ ...fileForm, url: e.target.value })}
-                  />
-
-                  <button className="primary-btn" onClick={addFile}>
-                    + إضافة ملف
-                  </button>
+                  <input placeholder="رابط الملف" value={fileForm.url} onChange={(e) => setFileForm({ ...fileForm, url: e.target.value })} />
+                  <button className="primary-btn" onClick={addFile}>+ إضافة ملف</button>
                 </div>
 
                 <div className="list-block">
@@ -3007,9 +2452,7 @@ export default function App() {
                       <div key={file.id} className="list-item">
                         <div><strong>النوع:</strong> {file.type}</div>
                         <div className="top-gap">
-                          <a href={file.url} target="_blank" rel="noreferrer">
-                            فتح الملف
-                          </a>
+                          <a href={file.url} target="_blank" rel="noreferrer">فتح الملف</a>
                         </div>
                         <div className="meta-text">{formatDate(file.createdAt)}</div>
                         <button
@@ -3040,38 +2483,16 @@ export default function App() {
             {activeTab === 'payments' && (
               <>
                 <div className="saas-grid-4">
-                  <input
-                    placeholder="اسم الدفعة"
-                    value={paymentForm.title}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, title: e.target.value })}
-                  />
-                  <input
-                    placeholder="المبلغ"
-                    type="number"
-                    value={paymentForm.amount}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                  />
-                  <input
-                    type="date"
-                    value={paymentForm.date}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
-                  />
-                  <select
-                    value={paymentForm.status}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, status: e.target.value })}
-                  >
-                    {PAYMENT_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {paymentStatusLabel(status)}
-                      </option>
-                    ))}
+                  <input placeholder="اسم الدفعة" value={paymentForm.title} onChange={(e) => setPaymentForm({ ...paymentForm, title: e.target.value })} />
+                  <input placeholder="المبلغ" type="number" value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })} />
+                  <input type="date" value={paymentForm.date} onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })} />
+                  <select value={paymentForm.status} onChange={(e) => setPaymentForm({ ...paymentForm, status: e.target.value })}>
+                    {PAYMENT_STATUSES.map((status) => <option key={status} value={status}>{paymentStatusLabel(status)}</option>)}
                   </select>
                 </div>
 
                 <div className="top-gap">
-                  <button className="primary-btn" onClick={addPayment}>
-                    + إضافة دفعة
-                  </button>
+                  <button className="primary-btn" onClick={addPayment}>+ إضافة دفعة</button>
                 </div>
 
                 <div className="list-block">
@@ -3086,15 +2507,8 @@ export default function App() {
                         <div><strong>الحالة:</strong> {paymentStatusLabel(payment.status)}</div>
 
                         <div className="saas-inline-actions top-gap">
-                          <select
-                            value={payment.status}
-                            onChange={(e) => updatePaymentStatus(payment.id, e.target.value)}
-                          >
-                            {PAYMENT_STATUSES.map((status) => (
-                              <option key={status} value={status}>
-                                {paymentStatusLabel(status)}
-                              </option>
-                            ))}
+                          <select value={payment.status} onChange={(e) => updatePaymentStatus(payment.id, e.target.value)}>
+                            {PAYMENT_STATUSES.map((status) => <option key={status} value={status}>{paymentStatusLabel(status)}</option>)}
                           </select>
 
                           <button
@@ -3153,12 +2567,8 @@ export default function App() {
               </div>
 
               <div className="saas-inline-actions">
-                <button className="secondary-btn small-btn" onClick={markAllNotificationsAsRead}>
-                  تعليم الكل كمقروء
-                </button>
-                <button className="danger-btn small-btn" onClick={() => setShowNotificationsPanel(false)}>
-                  إغلاق
-                </button>
+                <button className="secondary-btn small-btn" onClick={markAllNotificationsAsRead}>تعليم الكل كمقروء</button>
+                <button className="danger-btn small-btn" onClick={() => setShowNotificationsPanel(false)}>إغلاق</button>
               </div>
             </div>
 
@@ -3169,28 +2579,15 @@ export default function App() {
                 notifications.map((notification) => {
                   const isRead = readNotifications.includes(notification.id)
                   return (
-                    <div
-                      key={notification.id}
-                      className={`list-item notification-item notification-${notification.type} ${isRead ? 'is-read' : ''}`}
-                    >
+                    <div key={notification.id} className={`list-item notification-item notification-${notification.type} ${isRead ? 'is-read' : ''}`}>
                       <div><strong>{notification.title}</strong></div>
                       <div className="top-gap">{notification.text}</div>
                       <div className="meta-text">{notification.date || '-'}</div>
 
                       <div className="saas-inline-actions top-gap">
-                        <button
-                          className="primary-btn small-btn"
-                          onClick={() => openClientFromNotification(notification)}
-                        >
-                          فتح العميل
-                        </button>
+                        <button className="primary-btn small-btn" onClick={() => openClientFromNotification(notification)}>فتح العميل</button>
                         {!isRead && (
-                          <button
-                            className="secondary-btn small-btn"
-                            onClick={() => markNotificationAsRead(notification.id)}
-                          >
-                            تعليم كمقروء
-                          </button>
+                          <button className="secondary-btn small-btn" onClick={() => markNotificationAsRead(notification.id)}>تعليم كمقروء</button>
                         )}
                       </div>
                     </div>
