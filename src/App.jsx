@@ -50,6 +50,33 @@ const DEFAULT_SETTINGS = {
   notificationsEnabled: true
 }
 
+const DEFAULT_USERS = [
+  {
+    id: 'admin-1',
+    name: 'Admin',
+    email: 'admin@tamakan.com',
+    password: '123456',
+    role: 'admin',
+    active: true
+  },
+  {
+    id: 'manager-1',
+    name: 'Sales Manager',
+    email: 'manager@tamakan.com',
+    password: '123456',
+    role: 'manager',
+    active: true
+  },
+  {
+    id: 'sales-1',
+    name: 'Sales User',
+    email: 'sales@tamakan.com',
+    password: '123456',
+    role: 'sales',
+    active: true
+  }
+]
+
 const AR = {
   lead: 'عميل محتمل',
   contacted: 'تم التواصل',
@@ -156,6 +183,14 @@ const emptyPaymentForm = {
   status: 'Pending'
 }
 
+const emptyUserForm = {
+  name: '',
+  email: '',
+  password: '',
+  role: 'sales',
+  active: true
+}
+
 const sampleLead = {
   company: 'تمكن لتقنية المعلومات',
   phone: '966553909589',
@@ -172,7 +207,8 @@ const sampleLead = {
   nextFollowUpDate: '',
   lostReason: '',
   archived: false,
-  ownerName: 'مدير المبيعات',
+  ownerId: 'sales-1',
+  ownerName: 'Sales User',
   source: 'Manual',
   priority: 'Medium',
   tags: [],
@@ -283,6 +319,74 @@ function loadReadNotifications() {
   }
 }
 
+function loadLocalUsers() {
+  try {
+    const raw = localStorage.getItem('tamakan-local-users')
+    if (!raw) {
+      localStorage.setItem('tamakan-local-users', JSON.stringify(DEFAULT_USERS))
+      return DEFAULT_USERS
+    }
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      localStorage.setItem('tamakan-local-users', JSON.stringify(DEFAULT_USERS))
+      return DEFAULT_USERS
+    }
+    return parsed
+  } catch {
+    localStorage.setItem('tamakan-local-users', JSON.stringify(DEFAULT_USERS))
+    return DEFAULT_USERS
+  }
+}
+
+function loadCurrentUser() {
+  try {
+    return JSON.parse(localStorage.getItem('tamakan-current-user') || 'null')
+  } catch {
+    return null
+  }
+}
+
+function saveLocalUsers(users) {
+  localStorage.setItem('tamakan-local-users', JSON.stringify(users))
+}
+
+function saveCurrentUser(user) {
+  localStorage.setItem('tamakan-current-user', JSON.stringify(user))
+}
+
+function canManageUsers(user) {
+  return user?.role === 'admin'
+}
+
+function canSeeAllLeads(user) {
+  return user?.role === 'admin' || user?.role === 'manager'
+}
+
+function canEditLead(user, lead) {
+  if (!user || !lead) return false
+  if (user.role === 'admin' || user.role === 'manager') return true
+  return lead.ownerId === user.id
+}
+
+function canArchiveLead(user, lead) {
+  return canEditLead(user, lead)
+}
+
+function canDeleteLead(user) {
+  return user?.role === 'admin'
+}
+
+function canAccessReports(user) {
+  return user?.role === 'admin' || user?.role === 'manager'
+}
+
+function getRoleLabel(role) {
+  if (role === 'admin') return 'أدمن'
+  if (role === 'manager') return 'مدير'
+  if (role === 'sales') return 'موظف مبيعات'
+  return role
+}
+
 function buildWhatsAppMessage(lead, settings) {
   const company = lead.company || 'العميل'
   const service = lead.service || 'الخدمة المطلوبة'
@@ -341,12 +445,88 @@ function buildWhatsAppMessage(lead, settings) {
   return encodeURIComponent(text)
 }
 
-function Sidebar({ currentPage, setCurrentPage, settings }) {
+function LoginScreen({ onLogin }) {
+  const [users] = useState(loadLocalUsers())
+  const [email, setEmail] = useState('admin@tamakan.com')
+  const [password, setPassword] = useState('123456')
+  const [error, setError] = useState('')
+
+  function submitLogin(e) {
+    e.preventDefault()
+    const user = users.find(
+      (item) =>
+        item.email.trim().toLowerCase() === email.trim().toLowerCase() &&
+        item.password === password &&
+        item.active !== false
+    )
+
+    if (!user) {
+      setError('بيانات الدخول غير صحيحة أو الحساب غير مفعل')
+      return
+    }
+
+    onLogin(user)
+  }
+
+  return (
+    <div className="saas-shell auth-shell" dir="rtl">
+      <main className="saas-main auth-main">
+        <div className="auth-card saas-page-panel">
+          <div className="saas-brand auth-brand">
+            <div className="saas-brand-badge">T</div>
+            <div>
+              <div className="saas-brand-title">Tamakan CRM</div>
+              <div className="saas-brand-subtitle">تسجيل الدخول للنظام</div>
+            </div>
+          </div>
+
+          <form onSubmit={submitLogin} className="auth-form">
+            <div className="saas-grid-2">
+              <input
+                placeholder="البريد الإلكتروني"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <input
+                type="password"
+                placeholder="كلمة المرور"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            {error && <div className="empty-state top-gap">{error}</div>}
+
+            <div className="drawer-footer">
+              <button className="primary-btn" type="submit">
+                دخول
+              </button>
+            </div>
+          </form>
+
+          <div className="list-block top-gap">
+            <div className="list-item">
+              <strong>حساب الأدمن:</strong> admin@tamakan.com / 123456
+            </div>
+            <div className="list-item">
+              <strong>حساب المدير:</strong> manager@tamakan.com / 123456
+            </div>
+            <div className="list-item">
+              <strong>حساب المبيعات:</strong> sales@tamakan.com / 123456
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function Sidebar({ currentPage, setCurrentPage, settings, currentUser }) {
   const items = [
     { key: 'dashboard', label: AR.dashboard },
     { key: 'clients', label: AR.clients },
     { key: 'tasks', label: AR.tasks },
-    { key: 'reports', label: AR.reports },
+    ...(canAccessReports(currentUser) ? [{ key: 'reports', label: AR.reports }] : []),
     { key: 'archived', label: AR.archived },
     { key: 'settings', label: AR.settings }
   ]
@@ -357,7 +537,9 @@ function Sidebar({ currentPage, setCurrentPage, settings }) {
         <div className="saas-brand-badge">T</div>
         <div>
           <div className="saas-brand-title">{settings.companyName || 'Tamakan CRM'}</div>
-          <div className="saas-brand-subtitle">Sales SaaS</div>
+          <div className="saas-brand-subtitle">
+            {currentUser?.name} | {getRoleLabel(currentUser?.role)}
+          </div>
         </div>
       </div>
 
@@ -385,7 +567,10 @@ function Topbar({
   toggleTheme,
   showNextDevelopment,
   unreadNotificationsCount,
-  openNotifications
+  openNotifications,
+  currentUser,
+  logout,
+  canAddLead
 }) {
   return (
     <header className="saas-topbar">
@@ -398,7 +583,9 @@ function Topbar({
           {currentPage === 'archived' && AR.archived}
           {currentPage === 'settings' && AR.settings}
         </h1>
-        <p className="saas-page-subtitle">إدارة العملاء والصفقات والمتابعات | Client & Sales Management</p>
+        <p className="saas-page-subtitle">
+          إدارة العملاء والصفقات والمتابعات | {currentUser?.name} - {getRoleLabel(currentUser?.role)}
+        </p>
       </div>
 
       <div className="saas-topbar-actions">
@@ -422,8 +609,14 @@ function Topbar({
           🚀 {AR.nextDevelopment}
         </button>
 
-        <button className="primary-btn" onClick={openAddPanel}>
-          + {AR.addClient}
+        {canAddLead && (
+          <button className="primary-btn" onClick={openAddPanel}>
+            + {AR.addClient}
+          </button>
+        )}
+
+        <button className="danger-btn" onClick={logout}>
+          تسجيل خروج
         </button>
       </div>
     </header>
@@ -453,6 +646,9 @@ function EmptyState({ text }) {
 }
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState(loadCurrentUser())
+  const [users, setUsers] = useState(loadLocalUsers())
+
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState(null)
@@ -497,6 +693,9 @@ export default function App() {
   const [showNotificationsPanel, setShowNotificationsPanel] = useState(false)
   const [readNotifications, setReadNotifications] = useState(loadReadNotifications())
 
+  const [userForm, setUserForm] = useState(emptyUserForm)
+  const [editingUserId, setEditingUserId] = useState(null)
+
   useEffect(() => {
     document.body.setAttribute('data-theme', theme)
     localStorage.setItem('tamakan-theme', theme)
@@ -510,6 +709,10 @@ export default function App() {
     localStorage.setItem('tamakan-read-notifications', JSON.stringify(readNotifications))
   }, [readNotifications])
 
+  useEffect(() => {
+    saveLocalUsers(users)
+  }, [users])
+
   function toggleTheme() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
   }
@@ -517,13 +720,25 @@ export default function App() {
   function showNextDevelopment() {
     alert(
       'التطوير القادم المقترح:\n\n' +
-      '1) صلاحيات المستخدمين\n' +
+      '1) Firebase Auth حقيقي\n' +
       '2) رفع ملفات حقيقي\n' +
-      '3) إشعارات داخل النظام\n' +
-      '4) ربط واتساب احترافي API\n' +
-      '5) تقارير أذكى لكل موظف\n' +
-      '6) Login وربط مستخدمين'
+      '3) ربط واتساب API\n' +
+      '4) تقارير أذكى لكل موظف\n' +
+      '5) Audit Log كامل\n' +
+      '6) Toast Notifications'
     )
+  }
+
+  function loginUser(user) {
+    setCurrentUser(user)
+    saveCurrentUser(user)
+  }
+
+  function logoutUser() {
+    setCurrentUser(null)
+    localStorage.removeItem('tamakan-current-user')
+    setSelectedClient(null)
+    setCurrentPage('dashboard')
   }
 
   useEffect(() => {
@@ -625,20 +840,24 @@ export default function App() {
 
     async function loadAllTasks() {
       try {
-        const tasksResults = await Promise.all(
-          leads
-            .filter((lead) => !lead.archived)
-            .map(async (lead) => {
-              const tasksRef = collection(db, 'leads', lead.id, 'tasks')
-              const snapshot = await getDocs(tasksRef)
+        const visibleLeads = leads.filter((lead) => {
+          if (lead.archived) return false
+          if (canSeeAllLeads(currentUser)) return true
+          return lead.ownerId === currentUser?.id
+        })
 
-              return snapshot.docs.map((docSnap) => ({
-                id: docSnap.id,
-                clientId: lead.id,
-                clientName: lead.company || 'عميل غير معروف',
-                ...docSnap.data()
-              }))
-            })
+        const tasksResults = await Promise.all(
+          visibleLeads.map(async (lead) => {
+            const tasksRef = collection(db, 'leads', lead.id, 'tasks')
+            const snapshot = await getDocs(tasksRef)
+
+            return snapshot.docs.map((docSnap) => ({
+              id: docSnap.id,
+              clientId: lead.id,
+              clientName: lead.company || 'عميل غير معروف',
+              ...docSnap.data()
+            }))
+          })
         )
 
         const mergedTasks = tasksResults
@@ -651,17 +870,19 @@ export default function App() {
       }
     }
 
-    loadAllTasks()
+    if (currentUser) loadAllTasks()
 
     return () => {
       isMounted = false
     }
-  }, [leads])
+  }, [leads, currentUser])
 
   async function logActivity(clientId, action, details = '') {
     await addDoc(collection(db, 'leads', clientId, 'activity'), {
       action,
       details,
+      actorId: currentUser?.id || '',
+      actorName: currentUser?.name || '',
       createdAt: Date.now()
     })
   }
@@ -719,7 +940,8 @@ export default function App() {
       nextFollowUpDate: newLead.nextFollowUpDate || '',
       lostReason: newLead.lostReason || '',
       archived: false,
-      ownerName: settings.defaultTaskOwner || '',
+      ownerId: currentUser?.id || '',
+      ownerName: currentUser?.name || settings.defaultTaskOwner || '',
       source: 'Manual',
       priority: 'Medium',
       tags: [],
@@ -794,7 +1016,7 @@ export default function App() {
 
   async function addTask() {
     if (!selectedClient) return
-    const ownerToUse = taskForm.owner || settings.defaultTaskOwner
+    const ownerToUse = taskForm.owner || settings.defaultTaskOwner || currentUser?.name || ''
 
     if (!taskForm.title || !taskForm.dueDate || !ownerToUse) {
       alert('أكمل بيانات المهمة')
@@ -813,7 +1035,7 @@ export default function App() {
     await logActivity(selectedClient.id, 'إضافة مهمة', `تمت إضافة مهمة: ${taskForm.title}`)
     setTaskForm({
       ...emptyTaskForm,
-      owner: settings.defaultTaskOwner || ''
+      owner: settings.defaultTaskOwner || currentUser?.name || ''
     })
     setCurrentPage('tasks')
   }
@@ -954,7 +1176,7 @@ export default function App() {
     await recalcPayments(selectedClient.id)
   }
 
-  function exportCsv() {
+  function exportCsv(rowsSource) {
     const headers = [
       'اسم الشركة',
       'رقم الجوال',
@@ -967,10 +1189,11 @@ export default function App() {
       'المتبقي',
       'المتابعة القادمة',
       'تاريخ التسجيل',
-      'سبب الخسارة'
+      'سبب الخسارة',
+      'المسؤول'
     ]
 
-    const rows = activeLeads.map((lead) => [
+    const rows = rowsSource.map((lead) => [
       lead.company,
       lead.phone,
       lead.service,
@@ -982,7 +1205,8 @@ export default function App() {
       lead.remainingAmount,
       lead.nextFollowUpDate || '',
       formatDate(lead.createdAt),
-      lead.lostReason || ''
+      lead.lostReason || '',
+      lead.ownerName || ''
     ])
 
     const csv = [headers, ...rows]
@@ -999,8 +1223,94 @@ export default function App() {
     link.click()
   }
 
-  const activeLeads = useMemo(() => leads.filter((lead) => !lead.archived), [leads])
-  const archivedLeads = useMemo(() => leads.filter((lead) => lead.archived), [leads])
+  function createUser() {
+    if (!userForm.name || !userForm.email || !userForm.password) {
+      alert('أكمل بيانات المستخدم')
+      return
+    }
+
+    const exists = users.some(
+      (user) => user.email.trim().toLowerCase() === userForm.email.trim().toLowerCase()
+    )
+
+    if (exists) {
+      alert('هذا البريد مستخدم مسبقًا')
+      return
+    }
+
+    const newUser = {
+      id: `user-${Date.now()}`,
+      name: userForm.name,
+      email: userForm.email.trim().toLowerCase(),
+      password: userForm.password,
+      role: userForm.role,
+      active: userForm.active
+    }
+
+    setUsers((prev) => [newUser, ...prev])
+    setUserForm(emptyUserForm)
+  }
+
+  function startEditUser(user) {
+    setEditingUserId(user.id)
+    setUserForm({
+      name: user.name || '',
+      email: user.email || '',
+      password: user.password || '',
+      role: user.role || 'sales',
+      active: user.active !== false
+    })
+  }
+
+  function saveEditedUser() {
+    setUsers((prev) =>
+      prev.map((user) =>
+        user.id === editingUserId
+          ? {
+              ...user,
+              name: userForm.name,
+              email: userForm.email.trim().toLowerCase(),
+              password: userForm.password,
+              role: userForm.role,
+              active: userForm.active
+            }
+          : user
+      )
+    )
+
+    if (currentUser?.id === editingUserId) {
+      const updated = {
+        ...currentUser,
+        name: userForm.name,
+        email: userForm.email.trim().toLowerCase(),
+        password: userForm.password,
+        role: userForm.role,
+        active: userForm.active
+      }
+      setCurrentUser(updated)
+      saveCurrentUser(updated)
+    }
+
+    setEditingUserId(null)
+    setUserForm(emptyUserForm)
+  }
+
+  function removeUser(userId) {
+    if (currentUser?.id === userId) {
+      alert('لا يمكن حذف المستخدم الحالي')
+      return
+    }
+    setUsers((prev) => prev.filter((user) => user.id !== userId))
+  }
+
+  const visibleLeads = useMemo(() => {
+    if (!currentUser) return []
+    if (canSeeAllLeads(currentUser)) return leads
+    return leads.filter((lead) => lead.ownerId === currentUser.id)
+  }, [leads, currentUser])
+
+  const activeLeads = useMemo(() => visibleLeads.filter((lead) => !lead.archived), [visibleLeads])
+  const archivedLeads = useMemo(() => visibleLeads.filter((lead) => lead.archived), [visibleLeads])
 
   const filteredLeads = useMemo(() => {
     return activeLeads.filter((lead) => {
@@ -1012,7 +1322,8 @@ export default function App() {
         (lead.phone || '').toLowerCase().includes(q) ||
         (lead.service || '').toLowerCase().includes(q) ||
         (lead.stage || '').toLowerCase().includes(q) ||
-        (lead.status || '').toLowerCase().includes(q)
+        (lead.status || '').toLowerCase().includes(q) ||
+        (lead.ownerName || '').toLowerCase().includes(q)
 
       const matchesStage = stageFilter === 'All' || lead.stage === stageFilter
       const matchesTemp = tempFilter === 'All' || lead.temperature === tempFilter
@@ -1092,6 +1403,25 @@ export default function App() {
     }))
   }, [activeLeads])
 
+  const reportByUser = useMemo(() => {
+    if (!canSeeAllLeads(currentUser)) return []
+
+    return users
+      .filter((user) => user.active !== false)
+      .map((user) => {
+        const userLeads = activeLeads.filter((lead) => lead.ownerId === user.id)
+        return {
+          id: user.id,
+          name: user.name,
+          role: user.role,
+          count: userLeads.length,
+          won: userLeads.filter((lead) => lead.dealStatus === 'Won').length,
+          value: userLeads.reduce((sum, lead) => sum + Number(lead.quoteAmount || 0), 0)
+        }
+      })
+      .filter((row) => row.count > 0)
+  }, [activeLeads, users, currentUser])
+
   const notifications = useMemo(() => {
     if (!settings.notificationsEnabled) return []
 
@@ -1168,7 +1498,10 @@ export default function App() {
   }
 
   function openClientFromNotification(notification) {
-    const client = activeLeads.find((lead) => lead.id === notification.clientId) || leads.find((lead) => lead.id === notification.clientId)
+    const client =
+      activeLeads.find((lead) => lead.id === notification.clientId) ||
+      visibleLeads.find((lead) => lead.id === notification.clientId)
+
     if (client) {
       setSelectedClient(client)
       setActiveTab('overview')
@@ -1188,10 +1521,26 @@ export default function App() {
     alert('تمت إعادة الإعدادات الافتراضية')
   }
 
+  useEffect(() => {
+    if (!currentUser && !loading) return
+    if (currentPage === 'reports' && !canAccessReports(currentUser)) {
+      setCurrentPage('dashboard')
+    }
+  }, [currentPage, currentUser, loading])
+
+  if (!currentUser) {
+    return <LoginScreen onLogin={loginUser} />
+  }
+
   if (loading) {
     return (
       <div className="saas-shell">
-        <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} settings={settings} />
+        <Sidebar
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          settings={settings}
+          currentUser={currentUser}
+        />
         <main className="saas-main">
           <div className="loading-box">جاري تحميل البيانات...</div>
         </main>
@@ -1201,7 +1550,12 @@ export default function App() {
 
   return (
     <div className="saas-shell" dir="rtl">
-      <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} settings={settings} />
+      <Sidebar
+        currentPage={currentPage}
+        setCurrentPage={setCurrentPage}
+        settings={settings}
+        currentUser={currentUser}
+      />
 
       <main className="saas-main">
         <Topbar
@@ -1214,6 +1568,9 @@ export default function App() {
           showNextDevelopment={showNextDevelopment}
           unreadNotificationsCount={unreadNotificationsCount}
           openNotifications={() => setShowNotificationsPanel(true)}
+          currentUser={currentUser}
+          logout={logoutUser}
+          canAddLead={true}
         />
 
         {currentPage !== 'archived' && (
@@ -1246,7 +1603,7 @@ export default function App() {
                 ))}
               </select>
 
-              <button className="primary-btn" onClick={exportCsv}>
+              <button className="primary-btn" onClick={() => exportCsv(activeLeads)}>
                 ⬇️ تصدير CSV
               </button>
             </div>
@@ -1286,6 +1643,7 @@ export default function App() {
                           <div><strong>{AR.company}:</strong> {lead.company}</div>
                           <div><strong>{AR.service}:</strong> {lead.service || '-'}</div>
                           <div><strong>{AR.stage}:</strong> {stageLabel(lead.stage)}</div>
+                          <div><strong>المسؤول:</strong> {lead.ownerName || '-'}</div>
                           <div className="saas-inline-actions top-gap">
                             <a
                               href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead, settings)}`}
@@ -1322,17 +1680,7 @@ export default function App() {
                           <div><strong>{AR.company}:</strong> {lead.company}</div>
                           <div><strong>{AR.followup}:</strong> {lead.nextFollowUpDate}</div>
                           <div><strong>{AR.stage}:</strong> {stageLabel(lead.stage)}</div>
-                          <div className="saas-inline-actions top-gap">
-                            <button
-                              className="primary-btn small-btn"
-                              onClick={() => {
-                                setSelectedClient(lead)
-                                setActiveTab('overview')
-                              }}
-                            >
-                              فتح العميل
-                            </button>
-                          </div>
+                          <div><strong>المسؤول:</strong> {lead.ownerName || '-'}</div>
                         </div>
                       ))
                     )}
@@ -1350,6 +1698,7 @@ export default function App() {
                           <div><strong>{AR.company}:</strong> {lead.company}</div>
                           <div><strong>{AR.quote}:</strong> {formatMoney(lead.quoteAmount)} {settings.currency}</div>
                           <div><strong>{AR.decisionStatus}:</strong> {decisionLabel(lead.decisionStatus)}</div>
+                          <div><strong>المسؤول:</strong> {lead.ownerName || '-'}</div>
                         </div>
                       ))
                     )}
@@ -1379,7 +1728,7 @@ export default function App() {
                             setActiveTab('overview')
                           }}
                         >
-                          {editingId === lead.id ? (
+                          {editingId === lead.id && canEditLead(currentUser, lead) ? (
                             <>
                               <input
                                 value={lead.company}
@@ -1467,6 +1816,7 @@ export default function App() {
                               <div className="saas-lead-meta">{AR.quote}: {formatMoney(lead.quoteAmount)} {settings.currency}</div>
                               <div className="saas-lead-meta">{AR.paid}: {formatMoney(lead.paidAmount)} {settings.currency}</div>
                               <div className="saas-lead-meta">{AR.remaining}: {formatMoney(lead.remainingAmount)} {settings.currency}</div>
+                              <div className="saas-lead-meta">المسؤول: {lead.ownerName || '-'}</div>
                               {lead.dealStatus === 'Lost' && (
                                 <div className="saas-lead-meta">{AR.lostReason}: {lead.lostReason || '-'}</div>
                               )}
@@ -1484,62 +1834,68 @@ export default function App() {
                                   {AR.whatsapp}
                                 </a>
 
-                                <button
-                                  className="primary-btn small-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setEditingId(lead.id)
-                                  }}
-                                >
-                                  ✏️ {AR.edit}
-                                </button>
+                                {canEditLead(currentUser, lead) && (
+                                  <button
+                                    className="primary-btn small-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setEditingId(lead.id)
+                                    }}
+                                  >
+                                    ✏️ {AR.edit}
+                                  </button>
+                                )}
 
-                                <button
-                                  className="danger-btn small-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    archiveLead(lead.id)
-                                  }}
-                                >
-                                  📦 {AR.archive}
-                                </button>
+                                {canArchiveLead(currentUser, lead) && (
+                                  <button
+                                    className="danger-btn small-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      archiveLead(lead.id)
+                                    }}
+                                  >
+                                    📦 {AR.archive}
+                                  </button>
+                                )}
                               </div>
                             </>
                           )}
 
-                          <div className="saas-inline-actions top-gap">
-                            <select
-                              value={lead.stage}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={async (e) => {
-                                const value = e.target.value
-                                patchLeadLocal(lead.id, 'stage', value)
-                                await saveQuickField(lead.id, 'stage', value)
-                              }}
-                            >
-                              {STAGES.map((stageOption) => (
-                                <option key={stageOption} value={stageOption}>
-                                  {stageLabel(stageOption)}
-                                </option>
-                              ))}
-                            </select>
+                          {canEditLead(currentUser, lead) && (
+                            <div className="saas-inline-actions top-gap">
+                              <select
+                                value={lead.stage}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={async (e) => {
+                                  const value = e.target.value
+                                  patchLeadLocal(lead.id, 'stage', value)
+                                  await saveQuickField(lead.id, 'stage', value)
+                                }}
+                              >
+                                {STAGES.map((stageOption) => (
+                                  <option key={stageOption} value={stageOption}>
+                                    {stageLabel(stageOption)}
+                                  </option>
+                                ))}
+                              </select>
 
-                            <select
-                              value={lead.temperature}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={async (e) => {
-                                const value = e.target.value
-                                patchLeadLocal(lead.id, 'temperature', value)
-                                await saveQuickField(lead.id, 'temperature', value)
-                              }}
-                            >
-                              {TEMPERATURES.map((temp) => (
-                                <option key={temp} value={temp}>
-                                  {tempLabel(temp)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                              <select
+                                value={lead.temperature}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={async (e) => {
+                                  const value = e.target.value
+                                  patchLeadLocal(lead.id, 'temperature', value)
+                                  await saveQuickField(lead.id, 'temperature', value)
+                                }}
+                              >
+                                {TEMPERATURES.map((temp) => (
+                                  <option key={temp} value={temp}>
+                                    {tempLabel(temp)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </div>
                       ))}
                   </div>
@@ -1662,7 +2018,7 @@ export default function App() {
           </section>
         )}
 
-        {currentPage === 'reports' && (
+        {currentPage === 'reports' && canAccessReports(currentUser) && (
           <section className="saas-page-panel">
             <h2>{AR.reports}</h2>
 
@@ -1720,6 +2076,29 @@ export default function App() {
                   </div>
                 </div>
               </div>
+
+              {canSeeAllLeads(currentUser) && (
+                <div className="saas-page-panel">
+                  <h2>تقرير الموظفين</h2>
+                  <div className="list-block">
+                    {reportByUser.length === 0 ? (
+                      <EmptyState text="لا توجد بيانات موظفين حاليًا" />
+                    ) : (
+                      reportByUser.map((item) => (
+                        <div key={item.id} className="list-item report-row">
+                          <div>
+                            <strong>{item.name}</strong>
+                            <div className="meta-text">{getRoleLabel(item.role)}</div>
+                          </div>
+                          <div>العملاء: {item.count}</div>
+                          <div>المغلق: {item.won}</div>
+                          <div>القيمة: {formatMoney(item.value)} {settings.currency}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         )}
@@ -1737,14 +2116,19 @@ export default function App() {
                     <div><strong>{AR.phone}:</strong> {lead.phone}</div>
                     <div><strong>{AR.service}:</strong> {lead.service || '-'}</div>
                     <div><strong>{AR.dealStatus}:</strong> {dealLabel(lead.dealStatus)}</div>
+                    <div><strong>المسؤول:</strong> {lead.ownerName || '-'}</div>
 
                     <div className="saas-inline-actions top-gap">
-                      <button className="primary-btn small-btn" onClick={() => restoreLead(lead.id)}>
-                        ♻️ {AR.restore}
-                      </button>
-                      <button className="danger-btn small-btn" onClick={() => deleteLead(lead.id)}>
-                        🗑️ حذف نهائي
-                      </button>
+                      {canArchiveLead(currentUser, lead) && (
+                        <button className="primary-btn small-btn" onClick={() => restoreLead(lead.id)}>
+                          ♻️ {AR.restore}
+                        </button>
+                      )}
+                      {canDeleteLead(currentUser) && (
+                        <button className="danger-btn small-btn" onClick={() => deleteLead(lead.id)}>
+                          🗑️ حذف نهائي
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -1832,6 +2216,97 @@ export default function App() {
                 إعادة الافتراضي
               </button>
             </div>
+
+            {canManageUsers(currentUser) && (
+              <div className="top-gap">
+                <div className="saas-page-panel">
+                  <h2>إدارة المستخدمين</h2>
+
+                  <div className="saas-grid-4">
+                    <input
+                      placeholder="اسم المستخدم"
+                      value={userForm.name}
+                      onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                    />
+                    <input
+                      placeholder="البريد الإلكتروني"
+                      value={userForm.email}
+                      onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                    />
+                    <input
+                      placeholder="كلمة المرور"
+                      value={userForm.password}
+                      onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                    />
+                    <select
+                      value={userForm.role}
+                      onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                    >
+                      <option value="admin">أدمن</option>
+                      <option value="manager">مدير</option>
+                      <option value="sales">موظف مبيعات</option>
+                    </select>
+                  </div>
+
+                  <div className="saas-inline-actions top-gap">
+                    <label className="toggle-row">
+                      <span>الحساب مفعل</span>
+                      <label className="switch">
+                        <input
+                          type="checkbox"
+                          checked={userForm.active}
+                          onChange={(e) => setUserForm({ ...userForm, active: e.target.checked })}
+                        />
+                        <span className="slider"></span>
+                      </label>
+                    </label>
+                  </div>
+
+                  <div className="saas-inline-actions top-gap">
+                    {editingUserId ? (
+                      <>
+                        <button className="primary-btn" onClick={saveEditedUser}>
+                          حفظ تعديل المستخدم
+                        </button>
+                        <button
+                          className="danger-btn"
+                          onClick={() => {
+                            setEditingUserId(null)
+                            setUserForm(emptyUserForm)
+                          }}
+                        >
+                          إلغاء
+                        </button>
+                      </>
+                    ) : (
+                      <button className="primary-btn" onClick={createUser}>
+                        + إضافة مستخدم
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="list-block top-gap">
+                    {users.map((user) => (
+                      <div key={user.id} className="list-item">
+                        <div><strong>الاسم:</strong> {user.name}</div>
+                        <div><strong>البريد:</strong> {user.email}</div>
+                        <div><strong>الدور:</strong> {getRoleLabel(user.role)}</div>
+                        <div><strong>الحالة:</strong> {user.active ? 'مفعل' : 'موقوف'}</div>
+
+                        <div className="saas-inline-actions top-gap">
+                          <button className="primary-btn small-btn" onClick={() => startEditUser(user)}>
+                            ✏️ تعديل
+                          </button>
+                          <button className="danger-btn small-btn" onClick={() => removeUser(user.id)}>
+                            🗑️ حذف
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
         )}
       </main>
@@ -2001,6 +2476,7 @@ export default function App() {
                 <InfoBox label={AR.paid} value={`${formatMoney(selectedClientPaymentsSummary.paid)} ${settings.currency}`} />
                 <InfoBox label={AR.remaining} value={`${formatMoney(selectedClientPaymentsSummary.remaining)} ${settings.currency}`} />
                 <InfoBox label={AR.lostReason} value={selectedClient.lostReason || '-'} />
+                <InfoBox label="المسؤول" value={selectedClient.ownerName || '-'} />
                 <InfoBox label="عدد المهام" value={clientTasks.length} />
                 <InfoBox label="عدد الملاحظات" value={clientNotes.length} />
                 <InfoBox label="عدد الملفات" value={clientFiles.length} />
@@ -2236,6 +2712,9 @@ export default function App() {
                       <div><strong>{item.action}</strong></div>
                       <div className="top-gap">{item.details || '-'}</div>
                       <div className="meta-text">{formatDate(item.createdAt)}</div>
+                      <div className="meta-text">
+                        بواسطة: {item.actorName || '-'}
+                      </div>
                     </div>
                   ))
                 )}
