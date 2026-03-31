@@ -238,6 +238,15 @@ function todayString() {
   return `${y}-${m}-${d}`
 }
 
+function getStartOfWeekTimestamp() {
+  const now = new Date()
+  const day = now.getDay()
+  const diff = day === 0 ? 6 : day - 1
+  now.setHours(0, 0, 0, 0)
+  now.setDate(now.getDate() - diff)
+  return now.getTime()
+}
+
 function isTaskToday(task) {
   return task?.dueDate === todayString() && task?.status !== 'Done'
 }
@@ -664,6 +673,8 @@ export default function App() {
   const [stageFilter, setStageFilter] = useState('All')
   const [tempFilter, setTempFilter] = useState('All')
   const [dealFilter, setDealFilter] = useState('All')
+  const [decisionFilter, setDecisionFilter] = useState('All')
+  const [ownerFilter, setOwnerFilter] = useState('All')
   const [taskViewFilter, setTaskViewFilter] = useState('All')
 
   const [newLead, setNewLead] = useState(emptyLeadForm)
@@ -791,7 +802,7 @@ export default function App() {
 
   function showNextDevelopment() {
     showToast(
-      'التطوير القادم: Dashboard أقوى + Filters أوسع + تحسين التقارير',
+      'التطوير القادم: Audit Log أقوى + Firebase Auth + تحسين إدارة الملفات لاحقًا',
       'success'
     )
   }
@@ -1392,6 +1403,16 @@ export default function App() {
   const activeLeads = useMemo(() => visibleLeads.filter((lead) => !lead.archived), [visibleLeads])
   const archivedLeads = useMemo(() => visibleLeads.filter((lead) => lead.archived), [visibleLeads])
 
+  const ownerOptions = useMemo(() => {
+    const map = new Map()
+    activeLeads.forEach((lead) => {
+      if (lead.ownerId) {
+        map.set(lead.ownerId, lead.ownerName || 'بدون اسم')
+      }
+    })
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
+  }, [activeLeads])
+
   const filteredLeads = useMemo(() => {
     return activeLeads.filter((lead) => {
       const q = searchTerm.trim().toLowerCase()
@@ -1408,10 +1429,12 @@ export default function App() {
       const matchesStage = stageFilter === 'All' || lead.stage === stageFilter
       const matchesTemp = tempFilter === 'All' || lead.temperature === tempFilter
       const matchesDeal = dealFilter === 'All' || lead.dealStatus === dealFilter
+      const matchesDecision = decisionFilter === 'All' || lead.decisionStatus === decisionFilter
+      const matchesOwner = ownerFilter === 'All' || lead.ownerId === ownerFilter
 
-      return matchesSearch && matchesStage && matchesTemp && matchesDeal
+      return matchesSearch && matchesStage && matchesTemp && matchesDeal && matchesDecision && matchesOwner
     })
-  }, [activeLeads, searchTerm, stageFilter, tempFilter, dealFilter])
+  }, [activeLeads, searchTerm, stageFilter, tempFilter, dealFilter, decisionFilter, ownerFilter])
 
   const filteredArchivedLeads = useMemo(() => {
     return archivedLeads.filter((lead) => {
@@ -1445,6 +1468,11 @@ export default function App() {
   const totalWonValue = activeLeads
     .filter((x) => x.dealStatus === 'Won')
     .reduce((sum, x) => sum + Number(x.quoteAmount || 0), 0)
+
+  const avgDealValue = total ? Math.round(totalDealValue / total) : 0
+  const weeklyNewClients = activeLeads.filter((lead) => Number(lead.createdAt || 0) >= getStartOfWeekTimestamp()).length
+  const openDealsCount = activeLeads.filter((x) => x.dealStatus === 'Open').length
+  const winRateVsClosed = wonCount + lostCount ? Math.round((wonCount / (wonCount + lostCount)) * 100) : 0
 
   const todayTasksCount = allTasks.filter(isTaskToday).length
   const overdueTasksCount = allTasks.filter(isTaskOverdue).length
@@ -1500,7 +1528,49 @@ export default function App() {
         }
       })
       .filter((row) => row.count > 0)
+      .sort((a, b) => b.value - a.value)
   }, [activeLeads, users, currentUser])
+
+  const serviceStats = useMemo(() => {
+    const map = new Map()
+    activeLeads.forEach((lead) => {
+      const key = (lead.service || 'غير محدد').trim() || 'غير محدد'
+      const current = map.get(key) || { name: key, count: 0, value: 0 }
+      current.count += 1
+      current.value += Number(lead.quoteAmount || 0)
+      map.set(key, current)
+    })
+    return Array.from(map.values())
+      .sort((a, b) => b.count - a.count || b.value - a.value)
+      .slice(0, 5)
+  }, [activeLeads])
+
+  const lostReasonStats = useMemo(() => {
+    const map = new Map()
+    activeLeads
+      .filter((lead) => lead.dealStatus === 'Lost')
+      .forEach((lead) => {
+        const key = (lead.lostReason || 'غير محدد').trim() || 'غير محدد'
+        map.set(key, (map.get(key) || 0) + 1)
+      })
+    return Array.from(map.entries())
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+  }, [activeLeads])
+
+  const recentClients = useMemo(() => {
+    return [...activeLeads]
+      .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+      .slice(0, 6)
+  }, [activeLeads])
+
+  const upcomingClosings = useMemo(() => {
+    return activeLeads
+      .filter((lead) => !!lead.expectedCloseDate && lead.dealStatus === 'Open')
+      .sort((a, b) => String(a.expectedCloseDate).localeCompare(String(b.expectedCloseDate)))
+      .slice(0, 6)
+  }, [activeLeads])
 
   const notifications = useMemo(() => {
     if (!settings.notificationsEnabled) return []
@@ -1683,7 +1753,37 @@ export default function App() {
                 ))}
               </select>
 
-              <button className="primary-btn" onClick={() => exportCsv(activeLeads)}>
+              <select value={decisionFilter} onChange={(e) => setDecisionFilter(e.target.value)}>
+                <option value="All">كل حالات القرار</option>
+                {DECISION_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {decisionLabel(status)}
+                  </option>
+                ))}
+              </select>
+
+              {canSeeAllLeads(currentUser) && (
+                <select value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
+                  <option value="All">كل المسؤولين</option>
+                  {ownerOptions.map((owner) => (
+                    <option key={owner.id} value={owner.id}>
+                      {owner.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <button className="secondary-btn" onClick={() => {
+                setStageFilter('All')
+                setTempFilter('All')
+                setDealFilter('All')
+                setDecisionFilter('All')
+                setOwnerFilter('All')
+              }}>
+                إعادة تعيين الفلاتر
+              </button>
+
+              <button className="primary-btn" onClick={() => exportCsv(filteredLeads)}>
                 ⬇️ تصدير CSV
               </button>
             </div>
@@ -1694,97 +1794,210 @@ export default function App() {
           <>
             <section className="stats-grid stats-grid-extended">
               <StatCard title="📊 إجمالي العملاء" value={total} accent="blue" />
-              <StatCard title="🔎 نتائج البحث" value={filteredTotal} accent="purple" />
+              <StatCard title="🔎 نتائج الفلاتر" value={filteredTotal} accent="purple" />
+              <StatCard title="🆕 عملاء هذا الأسبوع" value={weeklyNewClients} accent="cyan" />
               <StatCard title="🔥 حار" value={hotCount} accent="red" />
               <StatCard title="🟡 دافئ" value={warmCount} accent="gold" />
               <StatCard title="☎️ تم التواصل" value={contactedCount} accent="orange" />
               <StatCard title="🤝 اجتماعات" value={meetingCount} accent="violet" />
               <StatCard title="📄 عروض أسعار" value={proposalCount} accent="cyan" />
+              <StatCard title="📂 صفقات مفتوحة" value={openDealsCount} accent="blue" />
               <StatCard title="💰 صفقات مغلقة" value={wonCount} accent="green" />
               <StatCard title="❌ صفقات مفقودة" value={lostCount} accent="red" />
               <StatCard title={`💵 قيمة الصفقات (${settings.currency})`} value={formatMoney(totalDealValue)} accent="blue" />
+              <StatCard title={`📌 متوسط الصفقة (${settings.currency})`} value={formatMoney(avgDealValue)} accent="orange" />
               <StatCard title={`✅ أرباح محققة (${settings.currency})`} value={formatMoney(totalWonValue)} accent="green" />
               <StatCard title="📅 مهام اليوم" value={todayTasksCount} accent="gold" />
               <StatCard title="🚨 مهام متأخرة" value={overdueTasksCount} accent="red" />
               <StatCard title="📈 نسبة التحويل" value={`${conversionRate}%`} accent="violet" />
+              <StatCard title="🏁 Win Rate (Closed)" value={`${winRateVsClosed}%`} accent="green" />
               <StatCard title="📦 العملاء المؤرشفون" value={archivedLeads.length} accent="orange" />
             </section>
 
             {currentPage === 'dashboard' && (
-              <section className="dashboard-grid">
-                <div className="saas-page-panel">
-                  <h2>متابعات اليوم</h2>
-                  <div className="list-block">
-                    {todayFollowups.length === 0 ? (
-                      <EmptyState text="لا توجد متابعات مجدولة اليوم" />
-                    ) : (
-                      todayFollowups.map((lead) => (
-                        <div key={lead.id} className="list-item highlight-today">
-                          <div><strong>{AR.company}:</strong> {lead.company}</div>
-                          <div><strong>{AR.service}:</strong> {lead.service || '-'}</div>
-                          <div><strong>{AR.stage}:</strong> {stageLabel(lead.stage)}</div>
-                          <div><strong>المسؤول:</strong> {lead.ownerName || '-'}</div>
-                          <div className="saas-inline-actions top-gap">
-                            <a
-                              href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead, settings)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="wa-btn"
-                            >
-                              {AR.whatsapp}
-                            </a>
-                            <button
-                              className="primary-btn small-btn"
-                              onClick={() => {
-                                setSelectedClient(lead)
-                                setActiveTab('overview')
-                              }}
-                            >
-                              فتح العميل
-                            </button>
+              <>
+                <section className="dashboard-grid">
+                  <div className="saas-page-panel">
+                    <h2>متابعات اليوم</h2>
+                    <div className="list-block">
+                      {todayFollowups.length === 0 ? (
+                        <EmptyState text="لا توجد متابعات مجدولة اليوم" />
+                      ) : (
+                        todayFollowups.map((lead) => (
+                          <div key={lead.id} className="list-item highlight-today">
+                            <div><strong>{AR.company}:</strong> {lead.company}</div>
+                            <div><strong>{AR.service}:</strong> {lead.service || '-'}</div>
+                            <div><strong>{AR.stage}:</strong> {stageLabel(lead.stage)}</div>
+                            <div><strong>المسؤول:</strong> {lead.ownerName || '-'}</div>
+                            <div className="saas-inline-actions top-gap">
+                              <a
+                                href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead, settings)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="wa-btn"
+                              >
+                                {AR.whatsapp}
+                              </a>
+                              <button
+                                className="primary-btn small-btn"
+                                onClick={() => {
+                                  setSelectedClient(lead)
+                                  setActiveTab('overview')
+                                }}
+                              >
+                                فتح العميل
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="saas-page-panel">
-                  <h2>متابعات متأخرة</h2>
-                  <div className="list-block">
-                    {overdueFollowups.length === 0 ? (
-                      <EmptyState text="لا توجد متابعات متأخرة" />
-                    ) : (
-                      overdueFollowups.map((lead) => (
-                        <div key={lead.id} className="list-item highlight-overdue">
-                          <div><strong>{AR.company}:</strong> {lead.company}</div>
-                          <div><strong>{AR.followup}:</strong> {lead.nextFollowUpDate}</div>
-                          <div><strong>{AR.stage}:</strong> {stageLabel(lead.stage)}</div>
-                          <div><strong>المسؤول:</strong> {lead.ownerName || '-'}</div>
-                        </div>
-                      ))
-                    )}
+                  <div className="saas-page-panel">
+                    <h2>متابعات متأخرة</h2>
+                    <div className="list-block">
+                      {overdueFollowups.length === 0 ? (
+                        <EmptyState text="لا توجد متابعات متأخرة" />
+                      ) : (
+                        overdueFollowups.map((lead) => (
+                          <div key={lead.id} className="list-item highlight-overdue">
+                            <div><strong>{AR.company}:</strong> {lead.company}</div>
+                            <div><strong>{AR.followup}:</strong> {lead.nextFollowUpDate}</div>
+                            <div><strong>{AR.stage}:</strong> {stageLabel(lead.stage)}</div>
+                            <div><strong>المسؤول:</strong> {lead.ownerName || '-'}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="saas-page-panel">
-                  <h2>عروض بانتظار القرار</h2>
-                  <div className="list-block">
-                    {pendingProposalLeads.length === 0 ? (
-                      <EmptyState text="لا توجد عروض بانتظار القرار" />
-                    ) : (
-                      pendingProposalLeads.map((lead) => (
-                        <div key={lead.id} className="list-item">
-                          <div><strong>{AR.company}:</strong> {lead.company}</div>
-                          <div><strong>{AR.quote}:</strong> {formatMoney(lead.quoteAmount)} {settings.currency}</div>
-                          <div><strong>{AR.decisionStatus}:</strong> {decisionLabel(lead.decisionStatus)}</div>
-                          <div><strong>المسؤول:</strong> {lead.ownerName || '-'}</div>
-                        </div>
-                      ))
-                    )}
+                  <div className="saas-page-panel">
+                    <h2>عروض بانتظار القرار</h2>
+                    <div className="list-block">
+                      {pendingProposalLeads.length === 0 ? (
+                        <EmptyState text="لا توجد عروض بانتظار القرار" />
+                      ) : (
+                        pendingProposalLeads.map((lead) => (
+                          <div key={lead.id} className="list-item">
+                            <div><strong>{AR.company}:</strong> {lead.company}</div>
+                            <div><strong>{AR.quote}:</strong> {formatMoney(lead.quoteAmount)} {settings.currency}</div>
+                            <div><strong>{AR.decisionStatus}:</strong> {decisionLabel(lead.decisionStatus)}</div>
+                            <div><strong>المسؤول:</strong> {lead.ownerName || '-'}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
-              </section>
+                </section>
+
+                <section className="dashboard-grid">
+                  <div className="saas-page-panel">
+                    <h2>أكثر الخدمات طلبًا</h2>
+                    <div className="list-block">
+                      {serviceStats.length === 0 ? (
+                        <EmptyState text="لا توجد بيانات خدمات" />
+                      ) : (
+                        serviceStats.map((item) => (
+                          <div key={item.name} className="list-item report-row">
+                            <div><strong>{item.name}</strong></div>
+                            <div>العدد: {item.count}</div>
+                            <div>القيمة: {formatMoney(item.value)} {settings.currency}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="saas-page-panel">
+                    <h2>أكثر أسباب الخسارة</h2>
+                    <div className="list-block">
+                      {lostReasonStats.length === 0 ? (
+                        <EmptyState text="لا توجد صفقات خاسرة حتى الآن" />
+                      ) : (
+                        lostReasonStats.map((item) => (
+                          <div key={item.reason} className="list-item report-row">
+                            <div><strong>{item.reason}</strong></div>
+                            <div>{item.count}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="saas-page-panel">
+                    <h2>أقرب إغلاقات متوقعة</h2>
+                    <div className="list-block">
+                      {upcomingClosings.length === 0 ? (
+                        <EmptyState text="لا توجد تواريخ إغلاق متوقعة" />
+                      ) : (
+                        upcomingClosings.map((lead) => (
+                          <div key={lead.id} className="list-item">
+                            <div><strong>{lead.company}</strong></div>
+                            <div className="top-gap">الخدمة: {lead.service || '-'}</div>
+                            <div className="top-gap">التاريخ: {lead.expectedCloseDate}</div>
+                            <div className="meta-text">القيمة: {formatMoney(lead.quoteAmount)} {settings.currency}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                <section className="dashboard-grid">
+                  <div className="saas-page-panel">
+                    <h2>أحدث العملاء</h2>
+                    <div className="list-block">
+                      {recentClients.length === 0 ? (
+                        <EmptyState text="لا يوجد عملاء حديثون" />
+                      ) : (
+                        recentClients.map((lead) => (
+                          <div key={lead.id} className="list-item">
+                            <div><strong>{lead.company}</strong></div>
+                            <div className="top-gap">الخدمة: {lead.service || '-'}</div>
+                            <div className="meta-text">{formatDate(lead.createdAt)}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {canSeeAllLeads(currentUser) && (
+                    <div className="saas-page-panel">
+                      <h2>لوحة أداء الموظفين</h2>
+                      <div className="list-block">
+                        {reportByUser.length === 0 ? (
+                          <EmptyState text="لا توجد بيانات موظفين" />
+                        ) : (
+                          reportByUser.slice(0, 6).map((item) => (
+                            <div key={item.id} className="list-item report-row">
+                              <div>
+                                <strong>{item.name}</strong>
+                                <div className="meta-text">{getRoleLabel(item.role)}</div>
+                              </div>
+                              <div>العملاء: {item.count}</div>
+                              <div>المغلق: {item.won}</div>
+                              <div>{formatMoney(item.value)} {settings.currency}</div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="saas-page-panel">
+                    <h2>ملخص القرار الحالي</h2>
+                    <div className="list-block">
+                      {reportByDecision.map((item) => (
+                        <div key={item.status} className="list-item report-row">
+                          <div><strong>{decisionLabel(item.status)}</strong></div>
+                          <div>{item.count}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              </>
             )}
 
             <section className="saas-board">
@@ -2132,7 +2345,7 @@ export default function App() {
               <InfoBox label="إجمالي المدفوع" value={`${formatMoney(activeLeads.reduce((s, x) => s + Number(x.paidAmount || 0), 0))} ${settings.currency}`} />
               <InfoBox label="إجمالي المتبقي" value={`${formatMoney(activeLeads.reduce((s, x) => s + Number(x.remainingAmount || 0), 0))} ${settings.currency}`} />
               <InfoBox label="نسبة التحويل" value={`${conversionRate}%`} />
-              <InfoBox label="عروض بانتظار القرار" value={pendingProposalLeads.length} />
+              <InfoBox label="Win Rate Closed" value={`${winRateVsClosed}%`} />
             </div>
 
             <div className="dashboard-grid top-gap">
@@ -2920,9 +3133,7 @@ export default function App() {
                       <div><strong>{item.action}</strong></div>
                       <div className="top-gap">{item.details || '-'}</div>
                       <div className="meta-text">{formatDate(item.createdAt)}</div>
-                      <div className="meta-text">
-                        بواسطة: {item.actorName || '-'}
-                      </div>
+                      <div className="meta-text">بواسطة: {item.actorName || '-'}</div>
                     </div>
                   ))
                 )}
