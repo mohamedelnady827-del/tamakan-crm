@@ -41,6 +41,7 @@ const LOST_REASONS = [
   'سبب آخر'
 ]
 const TABS = ['overview', 'tasks', 'notes', 'files', 'payments', 'activity']
+
 const DEFAULT_SETTINGS = {
   companyName: 'Tamakan CRM',
   currency: 'ريال',
@@ -696,6 +697,22 @@ export default function App() {
   const [userForm, setUserForm] = useState(emptyUserForm)
   const [editingUserId, setEditingUserId] = useState(null)
 
+  const [toast, setToast] = useState({
+    open: false,
+    message: '',
+    type: 'success'
+  })
+
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    message: '',
+    confirmText: 'تأكيد',
+    cancelText: 'إلغاء',
+    type: 'danger',
+    onConfirm: null
+  })
+
   useEffect(() => {
     document.body.setAttribute('data-theme', theme)
     localStorage.setItem('tamakan-theme', theme)
@@ -713,19 +730,69 @@ export default function App() {
     saveLocalUsers(users)
   }, [users])
 
+  useEffect(() => {
+    if (!toast.open) return
+    const timer = setTimeout(() => {
+      closeToast()
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [toast.open])
+
+  function showToast(message, type = 'success') {
+    setToast({
+      open: true,
+      message,
+      type
+    })
+  }
+
+  function closeToast() {
+    setToast({
+      open: false,
+      message: '',
+      type: 'success'
+    })
+  }
+
+  function openConfirmDialog({
+    title = 'تأكيد العملية',
+    message = 'هل أنت متأكد؟',
+    confirmText = 'تأكيد',
+    cancelText = 'إلغاء',
+    type = 'danger',
+    onConfirm
+  }) {
+    setConfirmDialog({
+      open: true,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      type,
+      onConfirm
+    })
+  }
+
+  function closeConfirmDialog() {
+    setConfirmDialog({
+      open: false,
+      title: '',
+      message: '',
+      confirmText: 'تأكيد',
+      cancelText: 'إلغاء',
+      type: 'danger',
+      onConfirm: null
+    })
+  }
+
   function toggleTheme() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
   }
 
   function showNextDevelopment() {
-    alert(
-      'التطوير القادم المقترح:\n\n' +
-      '1) Firebase Auth حقيقي\n' +
-      '2) رفع ملفات حقيقي\n' +
-      '3) ربط واتساب API\n' +
-      '4) تقارير أذكى لكل موظف\n' +
-      '5) Audit Log كامل\n' +
-      '6) Toast Notifications'
+    showToast(
+      'التطوير القادم: Dashboard أقوى + Filters أوسع + تحسين التقارير',
+      'success'
     )
   }
 
@@ -918,7 +985,7 @@ export default function App() {
 
   async function addLead() {
     if (!newLead.company || !newLead.phone) {
-      alert('أكمل اسم الشركة ورقم الجوال')
+      showToast('أكمل اسم الشركة ورقم الجوال', 'warning')
       return
     }
 
@@ -953,6 +1020,7 @@ export default function App() {
 
     setNewLead(emptyLeadForm)
     setShowAddPanel(false)
+    showToast('تمت إضافة العميل بنجاح', 'success')
   }
 
   async function updateLead(lead) {
@@ -969,6 +1037,7 @@ export default function App() {
     await logActivity(id, 'تحديث بيانات العميل', `تم تحديث بيانات العميل ${lead.company}`)
     await recalcPayments(id, quoteAmount)
     setEditingId(null)
+    showToast('تم تحديث بيانات العميل', 'success')
   }
 
   async function archiveLead(id) {
@@ -1019,7 +1088,7 @@ export default function App() {
     const ownerToUse = taskForm.owner || settings.defaultTaskOwner || currentUser?.name || ''
 
     if (!taskForm.title || !taskForm.dueDate || !ownerToUse) {
-      alert('أكمل بيانات المهمة')
+      showToast('أكمل بيانات المهمة', 'warning')
       return
     }
 
@@ -1038,6 +1107,7 @@ export default function App() {
       owner: settings.defaultTaskOwner || currentUser?.name || ''
     })
     setCurrentPage('tasks')
+    showToast('تمت إضافة المهمة بنجاح', 'success')
   }
 
   function startEditTask(task) {
@@ -1070,6 +1140,7 @@ export default function App() {
       owner: '',
       status: 'Pending'
     })
+    showToast('تم تعديل المهمة', 'success')
   }
 
   async function updateTaskStatus(taskId, status, clientIdOverride = null) {
@@ -1078,6 +1149,7 @@ export default function App() {
     await updateDoc(doc(db, 'leads', clientId, 'tasks', taskId), { status })
     await touchClient(clientId)
     await logActivity(clientId, 'تحديث حالة مهمة', `تم تحديث حالة المهمة إلى ${taskStatusLabel(status)}`)
+    showToast('تم تحديث حالة المهمة', 'success')
   }
 
   async function deleteTask(taskId, clientIdOverride = null) {
@@ -1090,7 +1162,7 @@ export default function App() {
 
   async function addNote() {
     if (!selectedClient || !noteText.trim()) {
-      alert('اكتب الملاحظة')
+      showToast('اكتب الملاحظة أولاً', 'warning')
       return
     }
 
@@ -1102,6 +1174,7 @@ export default function App() {
     await touchClient(selectedClient.id)
     await logActivity(selectedClient.id, 'إضافة ملاحظة', noteText.trim())
     setNoteText('')
+    showToast('تمت إضافة الملاحظة', 'success')
   }
 
   async function deleteNote(noteId) {
@@ -1113,7 +1186,7 @@ export default function App() {
 
   async function addFile() {
     if (!selectedClient || !fileForm.url.trim()) {
-      alert('أدخل رابط الملف')
+      showToast('أدخل رابط الملف أولاً', 'warning')
       return
     }
 
@@ -1126,6 +1199,7 @@ export default function App() {
     await touchClient(selectedClient.id)
     await logActivity(selectedClient.id, 'إضافة ملف', `نوع الملف: ${fileForm.type}`)
     setFileForm(emptyFileForm)
+    showToast('تمت إضافة رابط الملف', 'success')
   }
 
   async function deleteFile(fileId) {
@@ -1138,7 +1212,7 @@ export default function App() {
   async function addPayment() {
     if (!selectedClient) return
     if (!paymentForm.title || !paymentForm.amount || !paymentForm.date) {
-      alert('أكمل بيانات الدفعة')
+      showToast('أكمل بيانات الدفعة', 'warning')
       return
     }
 
@@ -1158,6 +1232,7 @@ export default function App() {
     )
     await recalcPayments(selectedClient.id)
     setPaymentForm(emptyPaymentForm)
+    showToast('تمت إضافة الدفعة بنجاح', 'success')
   }
 
   async function updatePaymentStatus(paymentId, status) {
@@ -1166,6 +1241,7 @@ export default function App() {
     await touchClient(selectedClient.id)
     await logActivity(selectedClient.id, 'تحديث حالة دفعة', `تم تحديث الحالة إلى ${paymentStatusLabel(status)}`)
     await recalcPayments(selectedClient.id)
+    showToast('تم تحديث حالة الدفعة', 'success')
   }
 
   async function deletePayment(paymentId) {
@@ -1221,11 +1297,13 @@ export default function App() {
     link.href = URL.createObjectURL(blob)
     link.download = 'tamakan-report.csv'
     link.click()
+
+    showToast('تم تصدير التقرير بنجاح', 'success')
   }
 
   function createUser() {
     if (!userForm.name || !userForm.email || !userForm.password) {
-      alert('أكمل بيانات المستخدم')
+      showToast('أكمل بيانات المستخدم', 'warning')
       return
     }
 
@@ -1234,7 +1312,7 @@ export default function App() {
     )
 
     if (exists) {
-      alert('هذا البريد مستخدم مسبقًا')
+      showToast('هذا البريد مستخدم مسبقًا', 'error')
       return
     }
 
@@ -1249,6 +1327,7 @@ export default function App() {
 
     setUsers((prev) => [newUser, ...prev])
     setUserForm(emptyUserForm)
+    showToast('تمت إضافة المستخدم بنجاح', 'success')
   }
 
   function startEditUser(user) {
@@ -1293,11 +1372,12 @@ export default function App() {
 
     setEditingUserId(null)
     setUserForm(emptyUserForm)
+    showToast('تم تحديث المستخدم بنجاح', 'success')
   }
 
   function removeUser(userId) {
     if (currentUser?.id === userId) {
-      alert('لا يمكن حذف المستخدم الحالي')
+      showToast('لا يمكن حذف المستخدم الحالي', 'warning')
       return
     }
     setUsers((prev) => prev.filter((user) => user.id !== userId))
@@ -1512,13 +1592,13 @@ export default function App() {
 
   function saveSettings() {
     localStorage.setItem('tamakan-crm-settings', JSON.stringify(settings))
-    alert('تم حفظ الإعدادات بنجاح')
+    showToast('تم حفظ الإعدادات بنجاح', 'success')
   }
 
   function resetSettings() {
     setSettings(DEFAULT_SETTINGS)
     localStorage.setItem('tamakan-crm-settings', JSON.stringify(DEFAULT_SETTINGS))
-    alert('تمت إعادة الإعدادات الافتراضية')
+    showToast('تمت إعادة الإعدادات الافتراضية', 'success')
   }
 
   useEffect(() => {
@@ -1851,7 +1931,17 @@ export default function App() {
                                     className="danger-btn small-btn"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      archiveLead(lead.id)
+                                      openConfirmDialog({
+                                        title: 'أرشفة العميل',
+                                        message: `هل تريد أرشفة العميل "${lead.company}"؟`,
+                                        confirmText: 'نعم، أرشف',
+                                        type: 'danger',
+                                        onConfirm: async () => {
+                                          await archiveLead(lead.id)
+                                          closeConfirmDialog()
+                                          showToast('تمت أرشفة العميل', 'success')
+                                        }
+                                      })
                                     }}
                                   >
                                     📦 {AR.archive}
@@ -2004,7 +2094,19 @@ export default function App() {
 
                           <button
                             className="danger-btn small-btn"
-                            onClick={() => deleteTask(task.id, task.clientId)}
+                            onClick={() =>
+                              openConfirmDialog({
+                                title: 'حذف المهمة',
+                                message: `هل تريد حذف المهمة "${task.title}"؟`,
+                                confirmText: 'نعم، احذف',
+                                type: 'danger',
+                                onConfirm: async () => {
+                                  await deleteTask(task.id, task.clientId)
+                                  closeConfirmDialog()
+                                  showToast('تم حذف المهمة', 'success')
+                                }
+                              })
+                            }
                           >
                             🗑️ {AR.delete}
                           </button>
@@ -2120,12 +2222,43 @@ export default function App() {
 
                     <div className="saas-inline-actions top-gap">
                       {canArchiveLead(currentUser, lead) && (
-                        <button className="primary-btn small-btn" onClick={() => restoreLead(lead.id)}>
+                        <button
+                          className="primary-btn small-btn"
+                          onClick={() =>
+                            openConfirmDialog({
+                              title: 'استرجاع العميل',
+                              message: `هل تريد استرجاع العميل "${lead.company}"؟`,
+                              confirmText: 'نعم، استرجع',
+                              type: 'success',
+                              onConfirm: async () => {
+                                await restoreLead(lead.id)
+                                closeConfirmDialog()
+                                showToast('تم استرجاع العميل', 'success')
+                              }
+                            })
+                          }
+                        >
                           ♻️ {AR.restore}
                         </button>
                       )}
+
                       {canDeleteLead(currentUser) && (
-                        <button className="danger-btn small-btn" onClick={() => deleteLead(lead.id)}>
+                        <button
+                          className="danger-btn small-btn"
+                          onClick={() =>
+                            openConfirmDialog({
+                              title: 'حذف نهائي',
+                              message: `سيتم حذف العميل "${lead.company}" نهائيًا، هل أنت متأكد؟`,
+                              confirmText: 'نعم، احذف',
+                              type: 'danger',
+                              onConfirm: async () => {
+                                await deleteLead(lead.id)
+                                closeConfirmDialog()
+                                showToast('تم حذف العميل نهائيًا', 'success')
+                              }
+                            })
+                          }
+                        >
                           🗑️ حذف نهائي
                         </button>
                       )}
@@ -2297,7 +2430,22 @@ export default function App() {
                           <button className="primary-btn small-btn" onClick={() => startEditUser(user)}>
                             ✏️ تعديل
                           </button>
-                          <button className="danger-btn small-btn" onClick={() => removeUser(user.id)}>
+                          <button
+                            className="danger-btn small-btn"
+                            onClick={() =>
+                              openConfirmDialog({
+                                title: 'حذف المستخدم',
+                                message: `هل تريد حذف المستخدم "${user.name}"؟`,
+                                confirmText: 'نعم، احذف',
+                                type: 'danger',
+                                onConfirm: async () => {
+                                  removeUser(user.id)
+                                  closeConfirmDialog()
+                                  showToast('تم حذف المستخدم', 'success')
+                                }
+                              })
+                            }
+                          >
                             🗑️ حذف
                           </button>
                         </div>
@@ -2542,7 +2690,22 @@ export default function App() {
                             ))}
                           </select>
 
-                          <button className="danger-btn small-btn" onClick={() => deleteTask(task.id)}>
+                          <button
+                            className="danger-btn small-btn"
+                            onClick={() =>
+                              openConfirmDialog({
+                                title: 'حذف المهمة',
+                                message: `هل تريد حذف المهمة "${task.title}"؟`,
+                                confirmText: 'نعم، احذف',
+                                type: 'danger',
+                                onConfirm: async () => {
+                                  await deleteTask(task.id)
+                                  closeConfirmDialog()
+                                  showToast('تم حذف المهمة', 'success')
+                                }
+                              })
+                            }
+                          >
                             🗑️ {AR.delete}
                           </button>
                         </div>
@@ -2575,7 +2738,22 @@ export default function App() {
                       <div key={note.id} className="list-item">
                         <div>{note.text}</div>
                         <div className="meta-text">{formatDate(note.createdAt)}</div>
-                        <button className="danger-btn small-btn top-gap" onClick={() => deleteNote(note.id)}>
+                        <button
+                          className="danger-btn small-btn top-gap"
+                          onClick={() =>
+                            openConfirmDialog({
+                              title: 'حذف الملاحظة',
+                              message: 'هل تريد حذف هذه الملاحظة؟',
+                              confirmText: 'نعم، احذف',
+                              type: 'danger',
+                              onConfirm: async () => {
+                                await deleteNote(note.id)
+                                closeConfirmDialog()
+                                showToast('تم حذف الملاحظة', 'success')
+                              }
+                            })
+                          }
+                        >
                           🗑️ {AR.delete}
                         </button>
                       </div>
@@ -2621,7 +2799,22 @@ export default function App() {
                           </a>
                         </div>
                         <div className="meta-text">{formatDate(file.createdAt)}</div>
-                        <button className="danger-btn small-btn top-gap" onClick={() => deleteFile(file.id)}>
+                        <button
+                          className="danger-btn small-btn top-gap"
+                          onClick={() =>
+                            openConfirmDialog({
+                              title: 'حذف الملف',
+                              message: 'هل تريد حذف هذا الملف؟',
+                              confirmText: 'نعم، احذف',
+                              type: 'danger',
+                              onConfirm: async () => {
+                                await deleteFile(file.id)
+                                closeConfirmDialog()
+                                showToast('تم حذف الملف', 'success')
+                              }
+                            })
+                          }
+                        >
                           🗑️ {AR.delete}
                         </button>
                       </div>
@@ -2691,7 +2884,22 @@ export default function App() {
                             ))}
                           </select>
 
-                          <button className="danger-btn small-btn" onClick={() => deletePayment(payment.id)}>
+                          <button
+                            className="danger-btn small-btn"
+                            onClick={() =>
+                              openConfirmDialog({
+                                title: 'حذف الدفعة',
+                                message: `هل تريد حذف الدفعة "${payment.title}"؟`,
+                                confirmText: 'نعم، احذف',
+                                type: 'danger',
+                                onConfirm: async () => {
+                                  await deletePayment(payment.id)
+                                  closeConfirmDialog()
+                                  showToast('تم حذف الدفعة', 'success')
+                                }
+                              })
+                            }
+                          >
                             🗑️ {AR.delete}
                           </button>
                         </div>
@@ -2778,6 +2986,41 @@ export default function App() {
                   )
                 })
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast.open && (
+        <div className={`toast toast-${toast.type}`}>
+          <div className="toast-content">
+            <span>{toast.message}</span>
+            <button className="toast-close" onClick={closeToast}>✕</button>
+          </div>
+        </div>
+      )}
+
+      {confirmDialog.open && (
+        <div className="confirm-overlay" onClick={closeConfirmDialog}>
+          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3>{confirmDialog.title}</h3>
+            <p>{confirmDialog.message}</p>
+
+            <div className="saas-inline-actions top-gap">
+              <button
+                className={confirmDialog.type === 'danger' ? 'danger-btn' : 'primary-btn'}
+                onClick={async () => {
+                  if (typeof confirmDialog.onConfirm === 'function') {
+                    await confirmDialog.onConfirm()
+                  }
+                }}
+              >
+                {confirmDialog.confirmText}
+              </button>
+
+              <button className="secondary-btn" onClick={closeConfirmDialog}>
+                {confirmDialog.cancelText}
+              </button>
             </div>
           </div>
         </div>
