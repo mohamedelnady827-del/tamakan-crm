@@ -767,3 +767,33 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb {
 .notification-info {
   border-right: 4px solid var(--primary);
 }
+.auth-shell {
+  grid-template-columns: 1fr;
+  min-height: 100vh;
+}
+
+.auth-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.auth-card {
+  width: min(760px, 100%);
+}
+
+.auth-brand {
+  margin-bottom: 20px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+}
+
+@media (max-width: 768px) {
+  .auth-main {
+    padding: 14px;
+  }
+
