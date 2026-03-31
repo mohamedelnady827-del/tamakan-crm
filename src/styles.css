@@ -903,4 +903,11 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb {
   .confirm-dialog {
     padding: 18px;
   }
+.dashboard-grid .saas-page-panel {
+  margin-bottom: 0;
 }
+
+.list-item strong {
+  font-weight: 700;
+}
+  
