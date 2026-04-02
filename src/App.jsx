@@ -610,6 +610,7 @@ export default function App() {
 
   const [leads, setLeads] = useState([])
   const [selectedClient, setSelectedClient] = useState(null)
+  const [activePanel, setActivePanel] = useState('dashboard')
   const [activeTab, setActiveTab] = useState('overview')
   const [showAddPanel, setShowAddPanel] = useState(false)
 
