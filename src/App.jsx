@@ -1580,43 +1580,90 @@ export default function App() {
                           {filteredLeads
                             .filter((lead) => lead.stage === stage)
                             .map((lead) => (
-                       <div
-  key={lead.id}
-  className={`saas-lead-card new-card ${lead.temperature === 'Hot' ? 'lead-hot' : 'lead-warm'}`}
-  onClick={() => {
-    setSelectedClient(lead)
-    setActiveTab('overview')
-  }}
->
-  <div className="card-top">
-    <strong>{lead.company}</strong>
-    <span className={`chip ${lead.temperature === 'Hot' ? 'hot' : 'warm'}`}>
-      {tempLabel(lead.temperature)}
-    </span>
-  </div>
+                              <div
+                                key={lead.id}
+                                className={`saas-lead-card ${lead.temperature === 'Hot' ? 'lead-hot' : 'lead-warm'}`}
+                                style={{ borderRightColor: lead.temperature === 'Hot' ? '#ef4444' : '#f59e0b' }}
+                                onClick={() => {
+                                  setSelectedClient(lead)
+                                  setActiveTab('overview')
+                                }}
+                              >
+                                {editingId === lead.id && canEditLead(currentUser, lead) ? (
+                                  <>
+                                    <input value={lead.company} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'company', e.target.value)} />
+                                    <input value={lead.phone} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'phone', e.target.value)} />
+                                    <input value={lead.service || ''} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'service', e.target.value)} placeholder="الخدمة" />
+                                    <input type="number" value={lead.quoteAmount || 0} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'quoteAmount', e.target.value)} placeholder="عرض السعر" />
+                                    <select value={lead.dealStatus || 'Open'} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'dealStatus', e.target.value)}>
+                                      {DEAL_STATUSES.map((status) => <option key={status} value={status}>{dealLabel(status)}</option>)}
+                                    </select>
+                                    <select value={lead.decisionStatus || 'Pending'} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'decisionStatus', e.target.value)}>
+                                      {DECISION_STATUSES.map((status) => <option key={status} value={status}>{decisionLabel(status)}</option>)}
+                                    </select>
+                                    <input value={lead.lostReason || ''} onClick={(e) => e.stopPropagation()} onChange={(e) => patchLeadLocal(lead.id, 'lostReason', e.target.value)} placeholder={AR.lostReason} />
 
-  <div className="card-service">
-    {lead.service || '-'}
-  </div>
+                                    <div className="saas-inline-actions">
+                                      <button className="primary-btn small-btn" onClick={(e) => { e.stopPropagation(); updateLead(lead) }}>💾 {AR.save}</button>
+                                      <button className="danger-btn small-btn" onClick={(e) => { e.stopPropagation(); setEditingId(null) }}>✖ {AR.cancel}</button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="saas-lead-header">
+                                      <strong>{lead.company}</strong>
+                                      <span className="saas-stage-chip">{stageLabel(lead.stage)}</span>
+                                    </div>
 
-  <div className="card-price">
-    💰 {formatMoney(lead.quoteAmount)} {settings.currency}
-  </div>
+                                    <div className="saas-lead-meta">{AR.service}: {lead.service || '-'}</div>
+                                    <div className="saas-lead-meta">{AR.dealStatus}: {dealLabel(lead.dealStatus)}</div>
+                                    <div className="saas-lead-meta">{AR.decisionStatus}: {decisionLabel(lead.decisionStatus)}</div>
+                                    <div className="saas-lead-meta">{AR.quote}: {formatMoney(lead.quoteAmount)} {settings.currency}</div>
+                                    <div className="saas-lead-meta">المسؤول: {lead.ownerName || '-'}</div>
+                                    <div className="saas-lead-small">📅 {formatDate(lead.createdAt)}</div>
+                                    <div className="saas-lead-small">📌 {AR.followup}: {lead.nextFollowUpDate || '-'}</div>
 
-  {lead.nextFollowUpDate && (
-    <div
-      className={`card-followup ${
-        lead.nextFollowUpDate === todayString()
-          ? 'today'
-          : lead.nextFollowUpDate < todayString()
-          ? 'overdue'
-          : ''
-      }`}
-    >
-      📌 {lead.nextFollowUpDate}
-    </div>
-  )}
-</div>
+                                    <div className="saas-inline-actions">
+                                      <a
+                                        href={`https://wa.me/${lead.phone}?text=${buildWhatsAppMessage(lead, settings)}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="wa-btn"
+                                      >
+                                        {AR.whatsapp}
+                                      </a>
+
+                                      {canEditLead(currentUser, lead) && (
+                                        <button className="primary-btn small-btn" onClick={(e) => { e.stopPropagation(); setEditingId(lead.id) }}>
+                                          ✏️ {AR.edit}
+                                        </button>
+                                      )}
+
+                                      {canArchiveLead(currentUser, lead) && (
+                                        <button
+                                          className="danger-btn small-btn"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            openConfirmDialog({
+                                              title: 'أرشفة العميل',
+                                              message: `هل تريد أرشفة العميل "${lead.company}"؟`,
+                                              confirmText: 'نعم، أرشف',
+                                              type: 'danger',
+                                              onConfirm: async () => {
+                                                await archiveLead(lead.id)
+                                                closeConfirmDialog()
+                                                showToast('تمت أرشفة العميل', 'success')
+                                              }
+                                            })
+                                          }}
+                                        >
+                                          📦 {AR.archive}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </>
+                                )}
 
                                 {canEditLead(currentUser, lead) && (
                                   <div className="saas-inline-actions top-gap">
